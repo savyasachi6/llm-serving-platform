@@ -37,9 +37,10 @@ COPY packages packages
 
 # Run 'uv sync' to install all dependencies specified in the pyproject.toml files.
 # The '--no-dev' flag ensures we don't install development dependencies (like pytest) in the production image.
-RUN uv sync --no-dev
+# Set PYTHONPATH to include apps/gateway and all packages
+ENV PYTHONPATH="/app/apps/gateway:/app/packages/contracts/src:/app/packages/common/src:/app/packages/prompt-engine/src:/app/packages/retrieval/src:/app/packages/evaluation/src"
 
-# Expose port 8000 to tell Docker that the container listens on this network port at runtime.
+EXPOSE 8000
 # This doesn't actually publish the port to the host machine, it acts as documentation between the image builder and the person running the container.
 EXPOSE 8000
 
@@ -48,4 +49,4 @@ EXPOSE 8000
 # 'apps.gateway.app.main:app' points to the FastAPI application instance.
 # '--host 0.0.0.0' binds the server to all network interfaces so it can receive outside traffic.
 # '--port 8000' specifies the listening port.
-CMD ["uv", "run", "uvicorn", "apps.gateway.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--directory", "apps/gateway", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

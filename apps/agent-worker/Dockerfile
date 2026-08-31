@@ -43,6 +43,9 @@ COPY packages packages
 # to keep the production image as small and secure as possible.
 RUN uv sync --no-dev
 
+# Set PYTHONPATH to include apps/agent-worker and all packages
+ENV PYTHONPATH="/app/apps/agent-worker:/app/packages/contracts/src:/app/packages/common/src:/app/packages/prompt-engine/src:/app/packages/retrieval/src:/app/packages/evaluation/src"
+
 # EXPOSE acts as documentation to inform Docker that this container listens on port 8001 at runtime.
 # This does not automatically publish the port to the outside world; that is handled by Kubernetes or Docker Compose.
 EXPOSE 8001
@@ -53,4 +56,4 @@ EXPOSE 8001
 # - 'app.server:app' tells uvicorn where to find the FastAPI application instance.
 # - '--host 0.0.0.0' binds the server to all network interfaces, allowing external traffic (like from the Gateway) to reach it.
 # - '--port 8001' sets the listening port.
-CMD ["uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uv", "run", "--directory", "apps/agent-worker", "uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8001"]
