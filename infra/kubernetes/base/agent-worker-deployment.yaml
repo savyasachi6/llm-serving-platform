@@ -23,9 +23,9 @@ spec:
         # The container definition for the agent-worker application.
         - name: agent-worker
           # Refers to the Docker image we built in apps/agent-worker/Dockerfile.
-          image: agent-worker:latest
-          # 'Never' prevents Kubernetes from attempting to pull the image from Docker Hub, forcing it to use the local build.
-          imagePullPolicy: Never
+          image: agent-worker:v1.2
+          # 'IfNotPresent' uses the local image if available, avoiding unnecessary network pulls.
+          imagePullPolicy: IfNotPresent
           ports:
             # The port that the uvicorn server inside the container is listening on.
             - containerPort: 8001

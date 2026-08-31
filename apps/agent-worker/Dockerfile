@@ -51,9 +51,10 @@ ENV PYTHONPATH="/app/apps/agent-worker:/app/packages/contracts/src:/app/packages
 EXPOSE 8001
 
 # The CMD instruction defines the default command executed when the container starts.
-# - 'uv run' ensures the command runs within the environment where dependencies were installed.
+# - 'uv run' ensures the command runs within the workspace virtual environment.
 # - 'uvicorn' is an ASGI web server implementation for Python.
-# - 'app.server:app' tells uvicorn where to find the FastAPI application instance.
+# - '--app-dir apps/agent-worker' tells uvicorn where to find the application package.
+# - 'app.server:app' points to the FastAPI application instance.
 # - '--host 0.0.0.0' binds the server to all network interfaces, allowing external traffic (like from the Gateway) to reach it.
 # - '--port 8001' sets the listening port.
-CMD ["uv", "run", "--directory", "apps/agent-worker", "uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uv", "run", "uvicorn", "app.server:app", "--app-dir", "apps/agent-worker", "--host", "0.0.0.0", "--port", "8001"]

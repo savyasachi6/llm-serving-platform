@@ -22,9 +22,9 @@ spec:
         # Define the container running the UI.
         - name: playground
           # The Docker image built from apps/playground/Dockerfile.
-          image: playground:latest
-          # Forces Kubernetes to use the locally built image rather than checking a remote registry.
-          imagePullPolicy: Never
+          image: playground:v1.1
+          # 'IfNotPresent' uses the local image if available, avoiding unnecessary network pulls.
+          imagePullPolicy: IfNotPresent
           ports:
             # The container Port where Nginx is listening for traffic (default HTTP port).
             - containerPort: 80

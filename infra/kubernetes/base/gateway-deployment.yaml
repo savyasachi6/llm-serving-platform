@@ -31,10 +31,9 @@ spec:
         # A name for the specific container within the Pod.
         - name: gateway
           # The Docker image to run. 'gateway:latest' assumes the image is available locally or from a configured registry.
-          image: gateway:latest
-          # 'Never' forces Kubernetes to use the local image instead of trying to pull it from the internet.
-          # This is typical for local development environments like kind or minikube.
-          imagePullPolicy: Never
+          image: gateway:v1.2
+          # 'IfNotPresent' uses the local image if available, avoiding unnecessary network pulls.
+          imagePullPolicy: IfNotPresent
           # Defines the network ports this container exposes.
           ports:
             # The port inside the container where the FastAPI app is listening (as defined in the Dockerfile).

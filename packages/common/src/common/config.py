@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
+from pydantic import field_validator
+from typing import Optional, Union
 
 class Settings(BaseSettings):
     gateway_port: int = 8000
@@ -19,5 +20,15 @@ class Settings(BaseSettings):
     enable_metrics: bool = True
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    @field_validator("gateway_port", mode="before")
+    @classmethod
+    def parse_gateway_port(cls, v: Union[int, str]) -> int:
+        if isinstance(v, str):
+            if v.startswith("tcp://"):
+                # Extract port from tcp://IP:PORT format injected by Kubernetes service link
+                return int(v.split(":")[-1])
+            return int(v)
+        return v
 
 settings = Settings()

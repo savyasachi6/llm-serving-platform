@@ -40,13 +40,12 @@ COPY packages packages
 # Set PYTHONPATH to include apps/gateway and all packages
 ENV PYTHONPATH="/app/apps/gateway:/app/packages/contracts/src:/app/packages/common/src:/app/packages/prompt-engine/src:/app/packages/retrieval/src:/app/packages/evaluation/src"
 
-EXPOSE 8000
-# This doesn't actually publish the port to the host machine, it acts as documentation between the image builder and the person running the container.
+# Expose port 8000 to tell Docker that the container listens on this network port at runtime.
 EXPOSE 8000
 
 # Define the default command to run when the container starts.
-# We use 'uv run' to execute uvicorn within the managed virtual environment.
-# 'apps.gateway.app.main:app' points to the FastAPI application instance.
+# We use 'uv run' to execute uvicorn within the managed workspace virtual environment.
+# '--app-dir apps/gateway' tells uvicorn to look inside apps/gateway, and 'app.main:app' points to the FastAPI instance.
 # '--host 0.0.0.0' binds the server to all network interfaces so it can receive outside traffic.
 # '--port 8000' specifies the listening port.
-CMD ["uv", "run", "--directory", "apps/gateway", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--app-dir", "apps/gateway", "--host", "0.0.0.0", "--port", "8000"]
