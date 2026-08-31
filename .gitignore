@@ -13,5 +13,6 @@ build/
 .ruff_cache/
 .mypy_cache/
 benchmarks/results/*.csv
+*.txt
 benchmarks/results/*.json
 !benchmarks/results/.gitkeep
