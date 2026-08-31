@@ -1,0 +1,13 @@
+{
+  "python.analysis.extraPaths": [
+    "./apps/gateway",
+    "./apps/agent-worker",
+    "./packages/contracts/src",
+    "./packages/prompt-engine/src",
+    "./packages/retrieval/src",
+    "./packages/evaluation/src",
+    "./packages/common/src"
+  ],
+  "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+  "python.testing.pytestEnabled": true
+}

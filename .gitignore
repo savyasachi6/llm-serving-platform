@@ -14,5 +14,8 @@ build/
 .mypy_cache/
 benchmarks/results/*.csv
 *.txt
+*.exe
+kind.exe
+
 benchmarks/results/*.json
 !benchmarks/results/.gitkeep

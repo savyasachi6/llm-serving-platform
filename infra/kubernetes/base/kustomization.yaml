@@ -5,3 +5,5 @@ resources:
   - gateway-deployment.yaml
   - gateway-service.yaml
   - hpa.yaml
+  - vllm-precision-deployment.yaml
+  - vllm-throughput-deployment.yaml

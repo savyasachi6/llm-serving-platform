@@ -6,8 +6,8 @@ from common.config import settings
 from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse
 
 class VllmClient(BackendClient):
-    def __init__(self):
-        self.base_url = settings.vllm_base_url
+    def __init__(self, base_url: str):
+        self.base_url = base_url
         
     async def chat_completion(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         client = get_http_client()

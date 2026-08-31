@@ -51,6 +51,27 @@ If you want to simulate a production environment (with 2 nodes and a real Ingres
    curl http://localhost/health
    ```
 
+### 1.3 Heterogeneous Multi-Model Deployments & GPU Time-Slicing
+By default, Kubernetes locks a GPU to a single Pod. If you attempt to run two vLLM models (e.g. `vllm-precision` and `vllm-throughput`) on a machine with a single GPU, the second pod will hang in `Pending` forever.
+
+To solve this locally, we use **NVIDIA GPU Time-Slicing**. This configuration tricks the Kubernetes NVIDIA device plugin into advertising a single physical GPU as multiple "Virtual GPUs" (e.g., 4 GPUs). 
+
+**How to enable Time-Slicing locally:**
+```bash
+# Apply the time-slicing ConfigMap
+kubectl apply -f infra/kubernetes/kind/gpu-time-slicing.yaml
+
+# Patch the NVIDIA device plugin DaemonSet to use the ConfigMap
+kubectl patch daemonset nvidia-device-plugin-daemonset -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args", "value": ["--config-file=/etc/kubernetes/nvidia-config/any"]}]'
+```
+
+*Note: Since the 12GB of VRAM is now shared between multiple pods, you MUST use smaller 2-3B parameter models, and explicitly limit `gpu-memory-utilization` to ~0.45 in your vLLM deployment flags so they don't crash.*
+
+### 1.4 Multi-LoRA Dynamic Hot-Swapping
+To maximize cost-efficiency, the throughput node (`Llama-3.2-3B-Instruct`) is configured to host multiple LoRA adapters (fine-tunes) simultaneously. 
+By passing `--enable-lora` and `--lora-modules` in the Kubernetes deployment, vLLM downloads the adapters directly from HuggingFace at startup. 
+When the Gateway forwards a request, it specifies the desired adapter in the `model` payload (e.g. `model="reasoning-lora"`), and vLLM dynamically hot-swaps it onto the base model in milliseconds.
+
 ## 2. Deploying to Google Cloud Platform (GKE)
 
 The `gcp` overlay includes configurations specifically designed for Google Kubernetes Engine (GKE), including an Ingress controller and safe-to-evict annotations for the Cluster Autoscaler.

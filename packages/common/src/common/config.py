@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     per_backend_concurrency: int = 20
     per_workflow_concurrency: int = 10
     
-    vllm_base_url: str = "http://localhost:8080/v1"
-    vllm_model: str = "meta-llama/Meta-Llama-3-8B-Instruct"
+    vllm_precision_url: str = "http://vllm-precision:8080/v1"
+    vllm_throughput_url: str = "http://vllm-throughput:8080/v1"
     
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3:8b"

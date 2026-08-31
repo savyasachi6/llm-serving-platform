@@ -5,11 +5,12 @@ A high-throughput, cost-efficient, caching-aware serving layer designed specific
 ## 🚀 Key Features
 
 *   **Bounded Admission Control:** Prevents system overload by shedding excess load (HTTP 503) instead of letting requests hang indefinitely in unbounded queues.
-*   **Workload-Aware Routing:** Dynamically routes traffic based on the workload type (e.g., sending chat to vLLM, background batch jobs to local Ollama instances).
+*   **Heterogeneous Workload Routing:** Dynamically routes traffic based on workload type (e.g., routing complex reasoning to an 8-bit Gemma model, and high-volume text transformations to a 4-bit Llama model).
+*   **Multi-LoRA Dynamic Hot-Swapping:** A single vLLM instance serves multiple fine-tuned models (LoRA adapters) simultaneously on the same base model. The `triage` and `redactor` agents dynamically request specialized LoRAs (`reasoning` and `reflection`) at runtime, and vLLM hot-swaps them in milliseconds.
+*   **Micro-Agent Assembly Line:** Discards brittle "Genius Agent" patterns in favor of single-shot, hyper-focused micro-agents (Triage, Redact, Respond) that scale flawlessly on smaller 2B-3B models.
 *   **Strict Tenant Isolation:** Exact-match semantic caching respects `tenant_scope` and `auth_scope`, guaranteeing cross-tenant data boundaries.
 *   **Prefix-Caching Optimization:** Implements a deterministic Prompt Builder designed to maximize Prefix Caching hits on engines like vLLM.
-*   **Agent Task Graph Orchestration:** Manages multi-step AI loops, handling fan-out (parallel steps) and safe cancellation without locking up inference threads.
-*   **Cloud Native:** Fully containerized and orchestrated via Kubernetes (with Kustomize overlays for GCP and Local environments).
+*   **Cloud Native (GPU Time-Slicing):** Fully containerized and orchestrated via Kubernetes. Utilizes NVIDIA GPU Time-slicing to share a single physical GPU across multiple heterogeneous model nodes locally.
 
 ## 🏗️ Architecture
 
