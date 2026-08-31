@@ -1,22 +1,22 @@
 # Deployment & Scaling Guide
 
-This document explains how the platform runs, the relationship between Docker and Kubernetes, and how to scale the system.
+This document outlines the deployment strategy for the platform, the relationship between the containerization and orchestration layers, and guidelines for scaling the system.
 
-## Docker vs. Kubernetes: How they work together
+## Containerization and Orchestration
 
-To understand how the platform runs, it helps to understand the progression from code to production:
+The platform relies on containerization to ensure consistency across environments, from local development to production scaling.
 
-1. **Docker (The Packaging):** Docker is used to package your application (like the Gateway) and its dependencies into a standard, runnable unit called a "Container Image". Think of it as a shipping container. We define what goes into this container in the `Dockerfile`.
-2. **Docker Compose (Local Development):** `docker-compose.yml` is a tool for running multiple Docker containers locally on a single machine. It spins up the Gateway, Redis, vLLM, and Ollama all on your laptop or a single development server.
-3. **Kubernetes (Production Orchestration):** When you move to production, running containers on a single machine isn't enough. You need multiple servers (a cluster). Kubernetes is the "orchestrator" that manages these containers across many servers. 
+1. **Docker (Packaging):** Docker is used to package the application components (e.g., the Gateway, Agent Worker) and their dependencies into standard container images. The build instructions for these images are defined in the respective `Dockerfile`s.
+2. **Docker Compose (Local Development):** `docker-compose.yml` provides a mechanism for running the multi-container stack locally. It orchestrates the Gateway, Redis, vLLM, and Ollama on a single development workstation or testing server.
+3. **Kubernetes (Production Orchestration):** For production environments requiring high availability and horizontal scaling, Kubernetes serves as the orchestrator. It distributes the container images across a cluster of nodes, handling load balancing, self-healing, and auto-scaling.
 
-**Does Kubernetes use Docker?**
-Yes and no. Kubernetes runs the exact same *Docker Images* that you built. However, modern Kubernetes technically uses a lightweight runtime behind the scenes (like `containerd` or `CRI-O`) instead of the full "Docker Desktop" engine to run them. But conceptually, Kubernetes is just a giant, multi-server version of Docker Compose that handles self-healing, load balancing, and auto-scaling.
+**The Relationship Between Kubernetes and Docker:**
+Kubernetes orchestrates the exact same container images built during the Docker workflow. While modern Kubernetes clusters typically use lightweight container runtimes (such as `containerd` or `CRI-O`) instead of the full Docker engine, the underlying container formats and execution principles remain identical.
 
 ## Deployment Environments
 
 ### Local Development (Docker Compose)
-For local testing, benchmarking, and development, use Docker Compose.
+For local testing, benchmarking, and development workflows, Docker Compose is the recommended tool.
 
 ```bash
 # Start the core gateway and local fallback engine (Ollama)
@@ -27,10 +27,10 @@ docker compose --profile local --profile gpu up -d --build
 ```
 
 ### Production Scaling (Kubernetes)
-In production, you want the system to scale based on traffic. The `infra/kubernetes/` directory contains the manifests.
+In production scenarios, the system is designed to scale dynamically based on traffic. The `infra/kubernetes/` directory contains the baseline manifests.
 
-- **Gateway Scaling:** The Gateway is lightweight (Python/FastAPI). Kubernetes can easily scale this from 3 replicas to 100 replicas based on CPU usage or HTTP request volume.
-- **vLLM Scaling:** Scaling the vLLM backend is harder because it requires GPUs. In Kubernetes, you would configure an Autoscaler to watch the queue depth of vLLM. If the queue gets too long, Kubernetes requests a new GPU node from the cloud provider, pulls the Docker image, and spins up a new vLLM instance to handle the load.
+- **Gateway Scaling:** The Gateway is a lightweight Python/FastAPI application. Kubernetes can scale this deployment horizontally (e.g., from 3 to 100 replicas) based on standard metrics like CPU utilization or HTTP request rates.
+- **vLLM Scaling:** Scaling the vLLM backend requires GPU provisioning. In a Kubernetes environment, a Cluster Autoscaler monitors the queue depth of pending vLLM pods. When capacity is reached, the autoscaler provisions new GPU-enabled nodes and schedules additional vLLM instances to distribute the inference load.
 
-## Model Profiles
-Because GPU VRAM is highly constrained (e.g., 12.2 GB on an RTX 5070 Ti), the exact configurations for the inference engines are stored in `infra/vllm/model-profiles/` and `infra/ollama/model-profiles/`. These profiles dictate the maximum context length, batch size, and memory utilization to prevent Out-Of-Memory (OOM) crashes.
+## Model Profiles and Hardware Constraints
+GPU VRAM is typically the primary constraint for LLM inference (e.g., 12.2 GB on an RTX 5070 Ti). To prevent Out-Of-Memory (OOM) failures, specific configurations for the inference engines are maintained in `infra/vllm/model-profiles/` and `infra/ollama/model-profiles/`. These profiles enforce strict boundaries on maximum context length, batch size, and GPU memory utilization.
