@@ -1,0 +1,18 @@
+# Speculative Decoding Draft Model Configuration
+
+# For speculative decoding, vLLM requires a smaller draft model to generate candidate tokens
+# while the target model verifies them. This can yield 2x-3x speedups for single-batch 
+# latency (like chat), but is often detrimental to high-throughput batching.
+
+draft_model: "meta-llama/Llama-3-1B"
+target_model: "meta-llama/Meta-Llama-3-8B-Instruct"
+
+# Number of speculative tokens to generate per step
+num_speculative_tokens: 5
+
+# Optional: Using ngram matching instead of a separate draft model
+# This doesn't require a second model loaded into VRAM, saving memory.
+ngram_prompt_lookup_max: 4
+
+# NOTE: Speculative decoding is disabled by default in our model profiles
+# to conserve VRAM on the 12GB RTX 5070 Ti constraint.
