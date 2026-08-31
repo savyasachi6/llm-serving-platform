@@ -1,0 +1,25 @@
+{
+    "title": "LLM Serving Dashboard",
+    "panels": [
+        {
+            "type": "timeseries",
+            "title": "Gateway Requests per Second",
+            "targets": [
+                {
+                    "expr": "rate(gateway_requests_total[1m])",
+                    "legendFormat": "{{status}}"
+                }
+            ]
+        },
+        {
+            "type": "timeseries",
+            "title": "P99 Latency",
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.99, sum(rate(gateway_request_latency_seconds_bucket[5m])) by (le))",
+                    "legendFormat": "P99"
+                }
+            ]
+        }
+    ]
+}

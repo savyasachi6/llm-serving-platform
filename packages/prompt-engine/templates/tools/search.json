@@ -1,0 +1,17 @@
+{
+    "type": "function",
+    "function": {
+        "name": "search",
+        "description": "Searches the internal knowledge base for documents.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query"
+                }
+            },
+            "required": ["query"]
+        }
+    }
+}
