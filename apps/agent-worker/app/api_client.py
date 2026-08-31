@@ -2,8 +2,8 @@ import httpx
 import uuid
 import time
 import os
+import re
 from typing import List, Dict, Any, Optional
-from common.config import settings
 from contracts.openai_models import ChatCompletionResponse, ChatCompletionResponseChoice, ChatMessage, UsageInfo
 
 class GatewayClient:
@@ -45,7 +45,6 @@ class GatewayClient:
             if workload_type == "triage":
                 simulated_text = "Billing" if any(w in user_content.lower() for w in ["bill", "charge", "refund", "invoice", "payment"]) else "Technical"
             elif workload_type == "redactor":
-                import re
                 simulated_text = user_content
                 simulated_text = re.sub(r'\b\d{3}-\d{2}-\d{4}\b', '[SSN-REDACTED]', simulated_text)
                 simulated_text = re.sub(r'[\w\.-]+@[\w\.-]+\.\w+', '[EMAIL-REDACTED]', simulated_text)

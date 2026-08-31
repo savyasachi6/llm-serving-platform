@@ -1,6 +1,7 @@
 from typing import Protocol, Optional
 import hashlib
 import json
+# pyrefly: ignore [missing-import]
 from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse
 
 class CachePolicy:
