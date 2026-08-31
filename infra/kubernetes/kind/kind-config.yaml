@@ -1,0 +1,23 @@
+# This is a configuration for Kubernetes IN Docker (kind).
+# It creates a 2-node cluster (1 control-plane, 1 worker) 
+# and specifically maps ports 80 and 443 to your Windows localhost.
+# This allows you to test real Kubernetes Ingress controllers (like ingress-nginx) locally.
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+- role: worker

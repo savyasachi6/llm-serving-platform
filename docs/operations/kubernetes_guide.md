@@ -14,8 +14,8 @@ Testing Kubernetes manifests locally ensures your configuration works before tou
    kubectl cluster-info
    ```
 
-### Deploying the Local Overlay
-The `local` overlay uses NodePorts instead of expensive cloud LoadBalancers, allowing you to access the gateway directly on `localhost`.
+### 1.1 Docker Desktop (Single Node - Quick Test)
+If you just want to verify the manifests apply successfully without advanced networking:
 
 ```bash
 # Apply the Kustomize overlay
@@ -24,12 +24,32 @@ kubectl apply -k infra/kubernetes/overlays/local
 # Verify pods are running
 kubectl get pods
 
-# To test the Gateway locally, the most reliable method across all cluster types (1-node or 2-node) is port-forwarding:
+# To test the Gateway locally, use port-forwarding:
 kubectl port-forward svc/gateway 8000:80
-
-# In a separate terminal, test the endpoint:
-curl http://localhost:8000/health
 ```
+
+### 1.2 KIND (Multi-Node & Local Ingress - Advanced Learning)
+If you want to simulate a production environment (with 2 nodes and a real Ingress load balancer) for learning:
+
+1. **Create the 2-Node Cluster:** We use a custom configuration that maps port 80 to your computer so we can use Ingress.
+   ```bash
+   kind create cluster --config infra/kubernetes/kind/kind-config.yaml
+   ```
+
+2. **Install the NGINX Ingress Controller:** This simulates the cloud load balancer.
+   ```bash
+   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+   ```
+
+3. **Deploy the GCP Overlay Locally:** We can actually deploy the production `gcp` overlay here because NGINX will pick up the Ingress resource!
+   ```bash
+   kubectl apply -k infra/kubernetes/overlays/gcp
+   ```
+
+4. **Test the Ingress:** Once the gateway pods and ingress-nginx pods are running, you can hit localhost on port 80 directly, and NGINX will route it to your 2-node cluster!
+   ```bash
+   curl http://localhost/health
+   ```
 
 ## 2. Deploying to Google Cloud Platform (GKE)
 
