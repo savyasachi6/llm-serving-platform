@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: ../../
+      dockerfile: apps/gateway/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GATEWAY_PORT=8000
+      - VLLM_BASE_URL=http://vllm:8080/v1
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - redis
+    networks:
+      - llm_net
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+    command: >
+      --model meta-llama/Meta-Llama-3-8B-Instruct
+      --gpu-memory-utilization 0.85
+      --enable-prefix-caching
+      --max-model-len 4096
+      --port 8080
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - gpu
+    networks:
+      - llm_net
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    profiles:
+      - local
+    networks:
+      - llm_net
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - llm_net
+
+volumes:
+  ollama_data:
+
+networks:
+  llm_net:

@@ -1,0 +1,4 @@
+# Ollama Profile for fallback/local use
+model_name: "llama3:8b"
+keep_alive: "5m"
+num_ctx: 4096

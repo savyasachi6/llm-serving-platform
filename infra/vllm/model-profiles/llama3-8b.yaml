@@ -1,0 +1,9 @@
+# vLLM Profile for RTX 5070 Ti (12.2 GB VRAM)
+model_name: "meta-llama/Meta-Llama-3-8B-Instruct"
+quantization: "awq"
+max_model_len: 4096
+gpu_memory_utilization: 0.85
+enable_prefix_caching: true
+enable_chunked_prefill: true
+max_num_seqs: 50
+max_num_batched_tokens: 4096

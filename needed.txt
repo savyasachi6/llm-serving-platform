@@ -1,0 +1,205 @@
+Agent rules and skills form the steering framework that allows AI coding assistants (such as Antigravity, Claude Code, Cursor, and custom multi-agent orchestrators) to operate within strict architectural, performance, and security boundaries.
+
+---
+
+### 1. What Are Rules vs. Skills?
+
+* **Agent Rules (`.agents/rules/*.md`) — The "Constitution":**
+* **What they are:** Passive, global constraints and invariants that must *never* be violated.
+* **How they work:** Loaded into the agent’s system context on every interaction. They define structural boundaries, prohibited actions (e.g., no raw prompt logging, no unvetted CLI flags, no destructive commands), and coding standards.
+
+
+* **Agent Skills (`.agents/skills/*/SKILL.md`) — The "Playbooks":**
+* **What they are:** Active, step-by-step procedural runbooks for specific technical tasks (e.g., tuning KV-cache allocation, running a synthetic benchmark, debugging a 504 timeout spike).
+* **How they work:** Loaded dynamically on demand when the agent or developer executes a specific workflow. Each skill specifies required pre-checks, step-by-step execution logic, validation commands, and mandatory stop conditions that require human sign-off.
+
+
+
+---
+
+### 2. Implementation: Core Rules for the Serving Platform
+
+#### `.agents/rules/llm-serving.md`
+
+```markdown
+# Rule: LLM Serving & Inference Standards
+
+1. Precise Memory Terminology:
+   - KV-cache memory grows approximately linearly with token count for a fixed model architecture and precision.
+   - Attention compute increases materially with context length; KV cache is a VRAM capacity constraint.
+   - Never claim KV-cache memory grows quadratically.
+
+2. Concurrency Separation:
+   - Async Gateway Concurrency: Controls in-flight HTTP requests via asyncio semaphores.
+   - Continuous Batching: Inference engine dynamic scheduling across decode/prefill iterations.
+   - Treat these as complementary, distinct layers.
+
+3. Prefix Caching Invariants:
+   - Prefix caching requires token-identical stable prefixes.
+   - Never inject volatile metadata (timestamps, UUIDs, dynamic user state) into the prefix.
+   - Tools must be canonically sorted before prompt assembly.
+
+4. Quantization & Performance Verification:
+   - Do not promote quantized models based solely on throughput.
+   - Always validate task success, structured JSON validity, and tool-call accuracy.
+   - Never invent CLI flags, model names, or undocumented engine parameters.
+
+```
+
+#### `.agents/rules/security.md`
+
+```markdown
+# Rule: Security, Privacy & Cache Safety
+
+1. Secret & Data Protection:
+   - Never log raw prompts, raw model completions, authorization headers, or secrets.
+   - Strip all sensitive fields in structured JSON logs using opaque hashes or redaction tokens.
+   - Commit only `.env.example`. Never commit `.env` or API tokens.
+
+2. Cache Isolation:
+   - Exact cache keys MUST include: `tenant_scope`, `auth_scope`, `model_id`, `system_prompt_version`, and normalized payload.
+   - Semantic caching is DISABLED by default.
+   - Banned from Semantic Cache: Side-effecting tool calls, personalized user data, financial/legal/medical queries, and changing external context.
+
+3. Destructive Action Guardrails:
+   - Do not pull multi-gigabyte models, start GPU containers, delete files, or modify infrastructure without explicit human confirmation.
+
+```
+
+#### `.agents/rules/architecture.md`
+
+```markdown
+# Rule: Architectural Boundaries & Modularity
+
+1. Component Boundaries:
+   - `apps/gateway`: Owns HTTP transport, admission, routing, timeouts, and metrics. No prompt templates or RAG business logic.
+   - `apps/agent-worker`: Owns task graphs, bounded fan-out/fan-in, and agent cancellation. No HTTP server routes.
+   - `packages/contracts`: Pure Pydantic DTOs. Zero dependencies on FastAPI, vLLM, or Redis.
+   - `packages/prompt-engine`: Owns stable prefix layout, token budgets, and canonical tool sorting. Does not invoke model APIs.
+   - `packages/retrieval`: Owns chunking, deduplication, and context budgeting. Does not touch engine flags.
+
+2. Dependency Inversion:
+   - Application layers communicate via abstract contracts.
+   - Route handlers must remain thin coordinators.
+
+```
+
+---
+
+### 3. Implementation: Core Skills for the Serving Platform
+
+#### `.agents/skills/llm-serving-engineer/SKILL.md`
+
+```markdown
+# Skill: LLM Serving Engineer
+
+## Purpose
+Configure, profile, and tune high-throughput inference engines (vLLM primary, Ollama fallback) with bounded resources.
+
+## Pre-Checks
+1. Check available hardware (`nvidia-smi` / NPU status).
+2. Inspect target model parameter size, context window (`max_model_len`), and quantization format.
+3. Compute baseline VRAM budget:
+   - Model Weights (GB) + Base CUDA Context (GB) + KV Cache Allocation = Total Target VRAM.
+
+## Stepwise Workflow
+1. Select target model profile from `infra/vllm/model-profiles/`.
+2. Configure `gpu_memory_utilization` conservatively (default: 0.85-0.90).
+3. Set `max_num_seqs` to match the gateway admission semaphore limit.
+4. Enable `--enable-prefix-caching` for workloads with stable system prefixes.
+5. If long RAG contexts are used, test chunked prefill (`--enable-chunked-prefill`) with a conservative token budget.
+6. Validate configuration using `infra/scripts/validate_compose.sh`.
+
+## Validation Commands
+```bash
+docker compose --profile gpu config
+pytest packages/contracts/tests/
+
+```
+
+## Stop Conditions (Requires Human Approval)
+
+* Downloading models > 1 GB.
+* Allocating > 90% of available GPU VRAM.
+* Enabling speculative decoding or multi-GPU tensor parallelism.
+
+```
+
+#### `.agents/skills/performance-benchmarking/SKILL.md`
+```markdown
+# Skill: Performance Benchmarking
+
+## Purpose
+Execute reproducible, synthetic load tests to evaluate throughput, latency (TTFT/ITL), and cache hit ratios without using private data.
+
+## Pre-Checks
+1. Confirm the gateway and target backends are in a healthy state (`/readyz`).
+2. Verify benchmark scenario files exist in `benchmarks/scenarios/`.
+3. Confirm strictly synthetic datasets are selected.
+
+## Stepwise Workflow
+1. Execute single-variable baseline test (`short_chat.yaml`).
+2. Run shared-prefix multi-agent test (`shared_prefix_agents.yaml`) to evaluate prefix-caching gain.
+3. Run long RAG prefill test (`long_rag.yaml`) to evaluate chunked prefill impact.
+4. Run saturation test (`overload.yaml`) to verify admission rejection (HTTP 429/503) and graceful recovery.
+5. Generate CSV/JSON summary metrics in `benchmarks/results/`.
+
+## Validation Commands
+```bash
+python benchmarks/runner/load_generator.py --scenario benchmarks/scenarios/short_chat.yaml
+
+```
+
+## Deliverables
+
+* Requests/sec, Output tokens/sec, p50/p95/p99 latency, TTFT, and prefix cache hit rate.
+
+```
+
+#### `.agents/skills/incident-debugging/SKILL.md`
+```markdown
+# Skill: Incident Debugging
+
+## Purpose
+Triage and resolve production issues including queue saturation, latency spikes, engine OOMs, and 504 gateway timeouts.
+
+## Diagnostic Workflow
+1. **504 Gateway Timeouts:**
+   - Inspect `gateway_inflight_requests` vs `gateway_queue_wait_seconds`.
+   - Check if backend semaphore is saturated or if upstream engine is pre-empting sequences.
+2. **GPU Out-of-Memory (OOM):**
+   - Check `gpu_memory_utilization` setting.
+   - Verify if concurrent long-context requests exceeded reserved KV cache space.
+3. **Prefix Cache Miss Regressions:**
+   - Verify prompt ordering via `PromptBuilder`.
+   - Check if volatile metadata (timestamps, session IDs) leaked into the prefix.
+4. **Agent Worker Fan-Out Freezes:**
+   - Check per-workflow semaphore limits.
+   - Ensure cancellation tokens propagated across failing child tasks.
+
+## Validation Commands
+```bash
+curl http://localhost:8000/metrics | grep gateway_
+pytest apps/gateway/tests/unit/test_admission.py
+
+```
+
+```
+
+---
+
+### 4. How to Use Rules and Skills in Development
+
+#### A. Automated Agent Operation (Antigravity / Coding Assistant)
+*   **Automatic Ingestion:** Modern agentic IDEs read `.agents/rules/` on project open to construct their working constraints.
+*   **Skill Invocation:** You can invoke a specific skill directly in your prompt. For example:
+    > *"Use the `performance-benchmarking` skill to run `shared_prefix_agents.yaml` against the mock backend and report p95 latency."*
+    The assistant will follow the pre-checks, execute the defined steps, run the validation commands, and halt at the defined stop conditions.
+
+#### B. Developer Runbooks
+*   Engineers can use the skills as standardized manual SOPs (Standard Operating Procedures) to safely run benchmarks, onboard new quantized models, or triage production incidents without guessing parameters.
+
+#### C. CI/CD and Linting Gates
+*   Automated static checkers verify that no code violates the rules (e.g., confirming no route handler implements raw business logic, checking that PII redaction filters are applied to all loggers).
+
+```
