@@ -24,8 +24,11 @@ kubectl apply -k infra/kubernetes/overlays/local
 # Verify pods are running
 kubectl get pods
 
-# Test the Gateway locally (assuming NodePort maps to port 30080, adjust based on kubectl get svc output)
-curl http://localhost:30080/health
+# To test the Gateway locally, the most reliable method across all cluster types (1-node or 2-node) is port-forwarding:
+kubectl port-forward svc/gateway 8000:80
+
+# In a separate terminal, test the endpoint:
+curl http://localhost:8000/health
 ```
 
 ## 2. Deploying to Google Cloud Platform (GKE)
