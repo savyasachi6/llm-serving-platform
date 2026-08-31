@@ -3,9 +3,24 @@ from app.api_client import GatewayClient
 
 class RedactAgent(BaseAgent):
     def __init__(self):
-        super().__init__(name="RedactAgent", description="Removes PII from tickets")
+        system_prompt = """You are an expert security and privacy compliance agent.
+Your sole responsibility is to redact Personally Identifiable Information (PII) from customer support tickets to ensure compliance with GDPR, CCPA, and internal security policies.
+
+# Redaction Rules (Standard Operating Procedure)
+1. **Names**: Replace all occurrences of human names (first and last) with [NAME-REDACTED].
+2. **Email Addresses**: Replace any email address with [EMAIL-REDACTED].
+3. **Phone Numbers**: Replace all phone numbers, including international codes and extensions, with [PHONE-REDACTED].
+4. **Credit Cards / Financials**: Replace all credit card numbers, bank account numbers, or SSNs with [CARD-REDACTED] or [SSN-REDACTED].
+5. **Physical Addresses**: Replace street addresses, ZIP codes, and specific locations with [ADDRESS-REDACTED].
+
+# Constraints
+- Do NOT change the original meaning or tone of the ticket.
+- Do NOT output any conversational filler (e.g., no "Here is the redacted text:").
+- ONLY output the exact redacted text and nothing else.
+- Ensure 100% accuracy. Missing a single piece of PII is a critical security failure.
+"""
+        super().__init__(name="RedactAgent", system_prompt=system_prompt)
         self.gateway = GatewayClient()
-        self.system_prompt = "Rewrite this text replacing all names, emails, and phone numbers with [REDACTED]. Do not output anything else."
 
     async def execute(self, task_input: dict) -> dict:
         ticket_text = task_input.get("ticket_text", "")

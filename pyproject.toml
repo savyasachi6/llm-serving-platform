@@ -17,10 +17,11 @@ dependencies = [
 
 [tool.uv.workspace]
 members = ["apps/*", "packages/*"]
+exclude = ["apps/playground"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-q --asyncio-mode=auto"
+addopts = "-q --asyncio-mode=auto --import-mode=importlib"
 pythonpath = [
     "apps/gateway",
     "apps/agent-worker",

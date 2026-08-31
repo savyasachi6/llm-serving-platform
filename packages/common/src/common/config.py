@@ -8,10 +8,12 @@ class Settings(BaseSettings):
     per_backend_concurrency: int = 20
     per_workflow_concurrency: int = 10
     
-    vllm_precision_url: str = "http://vllm-precision:8080/v1"
-    vllm_throughput_url: str = "http://vllm-throughput:8080/v1"
+    # vLLM base URL: In K8s, resolves to the vllm Service defined in vllm-deployment.yaml.
+    vllm_base_url: str = "http://vllm:8080/v1"
     
-    ollama_base_url: str = "http://localhost:11434"
+    # Ollama base URL: In K8s, resolves to the ollama Service. For local dev, override
+    # via .env file with OLLAMA_BASE_URL=http://localhost:11434
+    ollama_base_url: str = "http://ollama:11434"
     ollama_model: str = "llama3:8b"
     
     enable_metrics: bool = True

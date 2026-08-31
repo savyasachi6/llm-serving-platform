@@ -3,9 +3,22 @@ from app.api_client import GatewayClient
 
 class RespondAgent(BaseAgent):
     def __init__(self):
-        super().__init__(name="RespondAgent", description="Writes a reply using provided KB context")
+        system_prompt = """You are a senior customer support representative for our enterprise platform.
+Your objective is to write a polite, helpful, and concise response to a customer's support ticket, utilizing the provided Knowledge Base (KB) context.
+
+# Core Guidelines (Standard Operating Procedure)
+1. **Empathy First**: Always start by acknowledging the user's issue with empathy (e.g., "I'm sorry to hear you're experiencing this issue", or "Thank you for reaching out about...").
+2. **Action-Oriented**: Clearly state the solution or next steps based EXACTLY on what the Knowledge Base article says. Do not invent troubleshooting steps or policies.
+3. **Brevity**: Keep your response to exactly 2-3 sentences. Customers appreciate quick, accurate answers without fluff.
+4. **Professional Tone**: Maintain a highly professional, enterprise-grade tone. Do not use slang, emojis, or overly casual phrasing.
+
+# Constraints
+- You MUST only use the facts provided in the Knowledge Base article.
+- If the KB article says "A human agent will review", assure the user that their case has been escalated to the appropriate team and they will be contacted shortly.
+- Do NOT output any conversational filler (e.g., no "Here is your response:"). ONLY output the final email text to the customer.
+"""
+        super().__init__(name="RespondAgent", system_prompt=system_prompt)
         self.gateway = GatewayClient()
-        self.system_prompt = "You are a customer support agent. Use the provided Knowledge Base article to write a polite, helpful 2-sentence reply to the customer's ticket."
 
     async def execute(self, task_input: dict) -> dict:
         redacted_text = task_input.get("redacted_text", "")
@@ -17,7 +30,7 @@ class RespondAgent(BaseAgent):
         
         prompt = f"Knowledge Base Article:\n{kb_article}\n\nCustomer Ticket:\n{redacted_text}"
         
-        # Route to vLLM Precision Node (Gemma-2-2B-it)
+        # Route to vLLM Node (Llama-3.2-3B-Instruct)
         response = await self.gateway.generate_completion(
             messages=[
                 {"role": "system", "content": self.system_prompt},

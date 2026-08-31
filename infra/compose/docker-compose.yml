@@ -1,6 +1,15 @@
+# Docker Compose file for the Agentic LLM Serving Platform.
+# This orchestrates all services for local development.
+#
+# Usage:
+#   Local (CPU/Ollama):  docker compose -f infra/compose/docker-compose.yml --profile local up -d --build
+#   GPU (vLLM):          docker compose -f infra/compose/docker-compose.yml --profile gpu up -d --build
 version: '3.8'
 
 services:
+  # --- Application Services ---
+
+  # The API Gateway: ingress, admission control, caching, routing.
   gateway:
     build:
       context: ../../
@@ -9,6 +18,8 @@ services:
       - "8000:8000"
     environment:
       - GATEWAY_PORT=8000
+      # In Docker Compose, services communicate via their service names.
+      # 'vllm' and 'ollama' resolve to the respective containers below.
       - VLLM_BASE_URL=http://vllm:8080/v1
       - OLLAMA_BASE_URL=http://ollama:11434
     depends_on:
@@ -16,6 +27,37 @@ services:
     networks:
       - llm_net
 
+  # The Agent Worker: multi-agent orchestration (Triage, Redact, Respond).
+  agent-worker:
+    build:
+      context: ../../
+      dockerfile: apps/agent-worker/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      # Points to the gateway service above via Docker Compose DNS.
+      - GATEWAY_URL=http://gateway:8000
+    depends_on:
+      - gateway
+    networks:
+      - llm_net
+
+  # The Playground: React/Vite frontend UI served via Nginx.
+  playground:
+    build:
+      context: ../../apps/playground
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+      - agent-worker
+    networks:
+      - llm_net
+
+  # --- Inference Engines ---
+
+  # vLLM: High-performance GPU inference engine (only started with --profile gpu).
   vllm:
     image: vllm/vllm-openai:latest
     ports:
@@ -40,6 +82,7 @@ services:
     networks:
       - llm_net
 
+  # Ollama: Local CPU inference fallback (only started with --profile local).
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -51,6 +94,9 @@ services:
     networks:
       - llm_net
 
+  # --- Infrastructure ---
+
+  # Redis: Used for caching and session state.
   redis:
     image: redis:alpine
     ports:
@@ -58,6 +104,7 @@ services:
     networks:
       - llm_net
 
+  # Qdrant: Vector database for RAG retrieval.
   qdrant:
     image: qdrant/qdrant:latest
     ports:
@@ -71,6 +118,7 @@ services:
     networks:
       - llm_net
 
+  # Prometheus: Metrics collection and monitoring.
   prometheus:
     image: prom/prometheus:latest
     ports:

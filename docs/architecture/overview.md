@@ -15,7 +15,11 @@ The `agentic-llm-serving-platform` is designed as a high-throughput, cost-effici
    - **Role:** The orchestrator for complex, multi-step LLM workflows.
    - **Responsibilities:** Manages "Task Graphs" for AI agents performing multi-step operations (e.g., retrieval, reasoning, summarization). It handles task fan-out for parallel execution and safely propagates cancellations if a parent task fails.
 
-3. **Inference Engines (Backends)**
+3. **Playground (`apps/playground`)**
+   - **Role:** The browser-based frontend UI for the platform.
+   - **Responsibilities:** A React/Vite application (served by Nginx in production). Provides an interactive interface to submit customer tickets and observe the multi-agent pipeline in action. Communicates with the Agent Worker API.
+
+4. **Inference Engines (Backends)**
    - **vLLM:** The primary high-performance engine. It leverages PagedAttention and Prefix Caching to support heavy, concurrent production workloads such as chat interfaces and agentic loops.
    - **Ollama:** The fallback and local development engine. It easily runs locally and supports highly quantized models (GGUF), making it suitable for offline batch processing or environments with limited GPU resources.
 

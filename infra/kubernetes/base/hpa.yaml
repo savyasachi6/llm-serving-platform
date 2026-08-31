@@ -1,18 +1,31 @@
+# API version for autoscaling features.
 apiVersion: autoscaling/v2
+# HorizontalPodAutoscaler automatically scales the number of Pods in a replication controller, deployment, replica set or stateful set based on observed CPU utilization (or, with custom metrics support, on some other application-provided metrics).
 kind: HorizontalPodAutoscaler
 metadata:
+  # The name of the HPA resource.
   name: gateway-hpa
 spec:
+  # scaleTargetRef points to the resource that this HPA will scale.
   scaleTargetRef:
+    # We are targeting a Deployment.
     apiVersion: apps/v1
     kind: Deployment
+    # Specifically, the deployment named 'gateway'.
     name: gateway
+  # The minimum number of replicas that the HPA will scale down to.
   minReplicas: 3
+  # The maximum number of replicas that the HPA will scale up to during high load.
   maxReplicas: 20
+  # The metrics section defines what triggers a scaling event.
   metrics:
   - type: Resource
     resource:
+      # We are scaling based on CPU usage.
       name: cpu
       target:
+        # Utilization means it calculates a percentage of the requested CPU for the pods.
         type: Utilization
+        # If the average CPU utilization across all pods exceeds 75%, it will add more pods (up to 20).
+        # If it drops significantly below, it will remove pods (down to 3).
         averageUtilization: 75

@@ -1,9 +1,21 @@
+# Kustomization API version. Kustomize is a configuration management tool built into kubectl.
 apiVersion: kustomize.config.k8s.io/v1beta1
+# This file tells Kustomize which resources make up the application stack.
 kind: Kustomization
 
+# The 'resources' list defines all the Kubernetes manifests that should be applied together.
+# When you run 'kubectl apply -k .', it reads this list and applies all these files.
 resources:
+  # Gateway service (Ingress/API)
   - gateway-deployment.yaml
   - gateway-service.yaml
+  # Horizontal Pod Autoscaler for the Gateway
   - hpa.yaml
-  - vllm-precision-deployment.yaml
-  - vllm-throughput-deployment.yaml
+  # vLLM Engine (Inference backend)
+  - vllm-deployment.yaml
+  # Agent Worker service (Orchestration backend)
+  - agent-worker-deployment.yaml
+  - agent-worker-service.yaml
+  # Playground service (React Frontend UI)
+  - playground-deployment.yaml
+  - playground-service.yaml

@@ -4,9 +4,22 @@ from common.config import settings
 
 class TriageAgent(BaseAgent):
     def __init__(self):
-        super().__init__(name="TriageAgent", description="Classifies customer support tickets")
+        system_prompt = """You are an expert customer support triage agent for our enterprise platform.
+Your sole responsibility is to classify incoming customer support tickets into exactly one of the following exact categories: 'Billing', 'Technical', or 'General'.
+
+# Standard Operating Procedures (SOP)
+1. **Billing**: Use this category if the user mentions anything related to charges, refunds, invoices, credit cards, payment methods, double-billing, pricing tiers, or subscription cancellations.
+2. **Technical**: Use this category if the user mentions software crashes, bugs, latency, error codes, login failures, 2FA issues, API downtime, or UI glitches.
+3. **General**: Use this category for feedback, feature requests, partnership inquiries, or general questions about the company.
+
+# Constraints
+- You must output EXACTLY ONE WORD from the list: ['Billing', 'Technical', 'General'].
+- Do not output any conversational filler (e.g., no "The category is Billing").
+- Do not add punctuation like periods at the end of the word.
+- Analyze the user's intent carefully before making your final classification.
+"""
+        super().__init__(name="TriageAgent", system_prompt=system_prompt)
         self.gateway = GatewayClient()
-        self.system_prompt = "You are a customer support triage agent. Classify this ticket as 'Billing', 'Technical', or 'General'. Output exactly one word."
 
     async def execute(self, task_input: dict) -> dict:
         ticket_text = task_input.get("ticket_text", "")

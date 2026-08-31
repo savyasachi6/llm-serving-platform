@@ -1,0 +1,30 @@
+# Define the API version for the Deployment resource.
+apiVersion: apps/v1
+# We use a Deployment to run the playground UI. It ensures the Nginx web server pod is always running.
+kind: Deployment
+metadata:
+  # The name of this deployment resource.
+  name: playground
+spec:
+  # We only need 1 replica for the playground UI since it serves static files and is lightweight.
+  replicas: 1
+  # The selector ensures the Deployment manages the correct Pods.
+  selector:
+    matchLabels:
+      app: playground
+  template:
+    metadata:
+      # These labels are attached to the Pods created by this Deployment, matching the selector above.
+      labels:
+        app: playground
+    spec:
+      containers:
+        # Define the container running the UI.
+        - name: playground
+          # The Docker image built from apps/playground/Dockerfile.
+          image: playground:latest
+          # Forces Kubernetes to use the locally built image rather than checking a remote registry.
+          imagePullPolicy: Never
+          ports:
+            # The container Port where Nginx is listening for traffic (default HTTP port).
+            - containerPort: 80

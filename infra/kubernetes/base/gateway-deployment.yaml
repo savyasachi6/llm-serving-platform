@@ -1,23 +1,46 @@
+# The apiVersion defines which version of the Kubernetes API to use to create this object.
+# 'apps/v1' is the stable API version for Deployments.
 apiVersion: apps/v1
+# The 'kind' indicates what type of Kubernetes resource this file represents.
+# A Deployment manages a set of identical pods, ensuring the specified number are running and handling updates.
 kind: Deployment
+# The metadata section provides data that helps uniquely identify the object, including its name.
 metadata:
+  # The name of the deployment, which will be used in logs and CLI commands (e.g., 'kubectl get deployment gateway').
   name: gateway
+# The spec section defines the desired state of the Deployment.
 spec:
+  # 'replicas' tells Kubernetes how many pods (instances of the application) should be running at all times.
+  # Here, we want 3 identical gateway pods for high availability and load balancing.
   replicas: 3
+  # The selector defines how the Deployment finds which Pods to manage.
   selector:
+    # It will manage any pod that has the label 'app: gateway'.
     matchLabels:
       app: gateway
+  # The template defines the blueprint for the Pods that this Deployment will create.
   template:
+    # Metadata for the individual Pods.
     metadata:
+      # Labels attached to every pod. This MUST match the selector defined above.
       labels:
         app: gateway
+    # Spec defines the actual containers running inside the Pod.
     spec:
       containers:
+        # A name for the specific container within the Pod.
         - name: gateway
+          # The Docker image to run. 'gateway:latest' assumes the image is available locally or from a configured registry.
           image: gateway:latest
+          # 'Never' forces Kubernetes to use the local image instead of trying to pull it from the internet.
+          # This is typical for local development environments like kind or minikube.
           imagePullPolicy: Never
+          # Defines the network ports this container exposes.
           ports:
+            # The port inside the container where the FastAPI app is listening (as defined in the Dockerfile).
             - containerPort: 8000
+          # Environment variables to pass into the container at runtime.
           env:
+            # We explicitly tell the gateway application to use port 8000 via this environment variable.
             - name: GATEWAY_PORT
               value: "8000"

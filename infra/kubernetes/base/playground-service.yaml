@@ -1,0 +1,21 @@
+# Core API version for Services.
+apiVersion: v1
+# A Service acts as a networking abstraction for the playground Pods.
+kind: Service
+metadata:
+  # The DNS name for this service.
+  name: playground
+spec:
+  # Selects the Pods with the label 'app: playground' to route traffic to.
+  selector:
+    app: playground
+  ports:
+    - protocol: TCP
+      # The port exposed by the Service.
+      port: 80
+      # The port the container is listening on (Nginx default).
+      targetPort: 80
+  # Unlike ClusterIP (the default), 'LoadBalancer' tells the Kubernetes cluster
+  # (like GKE or Docker Desktop) to provision an external IP address to expose this
+  # service to the outside world, allowing users to access the UI via their browser.
+  type: LoadBalancer

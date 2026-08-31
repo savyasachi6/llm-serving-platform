@@ -1,11 +1,24 @@
+# Use the core v1 API for Services.
 apiVersion: v1
+# A Service defines a logical set of Pods and a policy by which to access them.
+# It acts as a stable internal load balancer and DNS name for the pods.
 kind: Service
 metadata:
+  # The name 'gateway' means other pods in the cluster can communicate with this service
+  # simply by making HTTP requests to 'http://gateway'. Kubernetes internal DNS resolves this.
   name: gateway
 spec:
+  # The selector determines which pods this service routes traffic to.
   selector:
+    # It will route traffic to any pod that has the label 'app: gateway' (matching our Deployment).
     app: gateway
+  # Define the ports that this service will expose.
   ports:
+    # TCP is the default protocol for HTTP web traffic.
     - protocol: TCP
+      # The port that the Service itself listens on. 
+      # Other services will talk to 'http://gateway:80'.
       port: 80
+      # The port on the underlying Pod that the traffic should be forwarded to.
+      # The gateway container is listening on 8000, so we forward 80 -> 8000.
       targetPort: 8000

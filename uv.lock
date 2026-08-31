@@ -18,6 +18,16 @@ members = [
 name = "agent-worker"
 version = "0.1.0"
 source = { editable = "apps/agent-worker" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
 
 [[package]]
 name = "agentic-llm-serving-platform"
