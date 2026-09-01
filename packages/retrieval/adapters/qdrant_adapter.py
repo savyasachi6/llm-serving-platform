@@ -1,6 +1,8 @@
-from typing import List, Dict, Any
-from retrieval.document_models import Chunk
+from typing import Any, Dict, List
+
 from retrieval.adapters.vector_store import VectorStoreAdapter
+from retrieval.document_models import Chunk
+
 
 class QdrantVectorStore(VectorStoreAdapter):
     """

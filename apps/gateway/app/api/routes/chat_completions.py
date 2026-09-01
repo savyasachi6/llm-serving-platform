@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException, Request
-from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse
+import time
+
 from app.api.dependencies import AdmissionDependency, RoutingDependency
 from common.telemetry import get_logger
-import time
+from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse
+from fastapi import APIRouter, Request
 
 router = APIRouter()
 logger = get_logger(__name__)

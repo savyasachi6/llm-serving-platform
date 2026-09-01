@@ -1,7 +1,7 @@
-name: "short_chat"
-description: "Baseline short multi-turn chat"
-concurrency: 10
-requests: 100
+name: "overload"
+description: "Saturation test to verify admission rejection (HTTP 429/503)"
+concurrency: 100
+requests: 1000
 workload_type: "chat"
 payload:
   model: "Qwen/Qwen2.5-0.5B-Instruct"

@@ -1,5 +1,6 @@
-from retrieval.document_models import Chunk, ChunkMetadata
 from retrieval.context_budgeter import ContextBudgeter
+from retrieval.document_models import Chunk, ChunkMetadata
+
 
 def test_context_budgeter_auth():
     budgeter = ContextBudgeter()

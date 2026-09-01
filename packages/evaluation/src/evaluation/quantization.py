@@ -1,5 +1,7 @@
-from typing import Dict, Any, List
+from typing import List
+
 from pydantic import BaseModel
+
 
 class EvaluationResult(BaseModel):
     model_name: str

@@ -11,11 +11,14 @@ resources:
   - gateway-service.yaml
   # Horizontal Pod Autoscaler for the Gateway
   - hpa.yaml
-  # vLLM Engine (Inference backend)
-  - vllm-deployment.yaml
+  # Heterogeneous vLLM Inference Engines (Precision + Throughput Multi-LoRA)
+  - vllm-precision-deployment.yaml
+  - vllm-throughput-deployment.yaml
   # Agent Worker service (Orchestration backend)
   - agent-worker-deployment.yaml
   - agent-worker-service.yaml
   # Playground service (React Frontend UI)
   - playground-deployment.yaml
   - playground-service.yaml
+  # Observability Stack (Prometheus & Grafana)
+  - observability-deployment.yaml

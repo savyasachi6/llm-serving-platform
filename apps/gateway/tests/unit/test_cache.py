@@ -1,6 +1,6 @@
-import pytest
 from app.infrastructure.cache.exact_cache import CachePolicy, ExactCacheKeyBuilder
 from contracts.openai_models import ChatCompletionRequest
+
 
 def test_cache_bypassed_without_tenant():
     req = ChatCompletionRequest(model="test", messages=[])

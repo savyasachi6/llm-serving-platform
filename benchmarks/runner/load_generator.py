@@ -1,9 +1,16 @@
 import asyncio
+import os
+import sys
 import time
+
 import httpx
+
+# Automatically add the packages directory to PYTHONPATH so it can find common.config
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "packages", "common", "src"))
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "packages", "contracts", "src"))
+
 from common.config import settings
-from contracts.openai_models import ChatCompletionRequest
-import json
+
 
 async def run_scenario(scenario_path: str):
     import yaml

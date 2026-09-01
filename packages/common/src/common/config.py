@@ -1,6 +1,8 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Union
+
 from pydantic import field_validator
-from typing import Optional, Union
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     gateway_port: int = 8000
@@ -9,7 +11,12 @@ class Settings(BaseSettings):
     per_backend_concurrency: int = 20
     per_workflow_concurrency: int = 10
     
-    # vLLM base URL: In K8s, resolves to the vllm Service defined in vllm-deployment.yaml.
+    # vLLM base URLs for heterogeneous multi-model serving:
+    # vllm-precision: Dedicated high-accuracy reasoning & synthesis node
+    vllm_precision_base_url: str = "http://vllm-precision:8080/v1"
+    # vllm-throughput: High-speed node with Multi-LoRA dynamic hot-swapping
+    vllm_throughput_base_url: str = "http://vllm-throughput:8080/v1"
+    # Legacy / single vLLM fallback base URL:
     vllm_base_url: str = "http://vllm:8080/v1"
     
     # Ollama base URL: In K8s, resolves to the ollama Service. For local dev, override

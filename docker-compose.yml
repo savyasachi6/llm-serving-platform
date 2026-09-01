@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  gateway:
+    image: gateway:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - USE_MOCK=False
+    depends_on:
+      - redis
+      - vllm-precision
+      - vllm-throughput
+    networks:
+      - llm-network
+
+  agent-worker:
+    image: agent-worker:latest
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - llm-network
+
+  vllm-precision:
+    image: vllm/vllm-openai:latest
+    command: >
+      --model Qwen/Qwen2.5-1.5B-Instruct 
+      --gpu-memory-utilization 0.45 
+      --max-model-len 2048 
+      --enforce-eager 
+      --port 8080
+    ports:
+      - "8082:8080"
+    env_file:
+      - .env
+    environment:
+      - VLLM_WSL2_ENABLE_PIN_MEMORY=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - llm-network
+
+  vllm-throughput:
+    image: vllm/vllm-openai:latest
+    command: >
+      --model Qwen/Qwen2.5-0.5B-Instruct 
+      --gpu-memory-utilization 0.30 
+      --max-model-len 1024 
+      --enforce-eager 
+      --enable-lora 
+      --max-loras 4 
+      --lora-modules reasoning-lora=wuyanzu4692/task-13-Qwen-Qwen2.5-0.5B-Instruct reflection-lora=Hebisuke/Qwen2.5-0.5B-Instruct_bias2_0.5B 
+      --port 8080
+    ports:
+      - "8083:8080"
+    env_file:
+      - .env
+    environment:
+      - VLLM_WSL2_ENABLE_PIN_MEMORY=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - llm-network
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - llm-network
+
+networks:
+  llm-network:
+    driver: bridge

@@ -19,3 +19,9 @@ kind.exe
 
 benchmarks/results/*.json
 !benchmarks/results/.gitkeep
+
+# Ignored large files and temp binaries
+minikube-linux-amd64
+gateway.tar
+lora_adapters/
+kind.exe

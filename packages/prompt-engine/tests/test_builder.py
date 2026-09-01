@@ -1,5 +1,5 @@
-import pytest
-from prompt_engine.builder import StablePrefix, PromptBuilder
+from prompt_engine.builder import PromptBuilder, StablePrefix
+
 
 def test_stable_prefix_hash_determinism():
     tools = [

@@ -1,6 +1,6 @@
 from app.agents.base import BaseAgent
 from app.api_client import GatewayClient
-from common.config import settings
+
 
 class TriageAgent(BaseAgent):
     def __init__(self):

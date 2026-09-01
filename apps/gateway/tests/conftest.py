@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 # Ensure the gateway's 'app' package is found first by inserting its
 # parent directory at the beginning of sys.path.

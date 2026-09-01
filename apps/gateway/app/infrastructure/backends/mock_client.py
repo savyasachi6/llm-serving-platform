@@ -1,7 +1,15 @@
 import time
 import uuid
+
 from app.infrastructure.backends.base import BackendClient
-from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse, ChatCompletionResponseChoice, ChatMessage, UsageInfo
+from contracts.openai_models import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatCompletionResponseChoice,
+    ChatMessage,
+    UsageInfo,
+)
+
 
 class MockClient(BackendClient):
     def __init__(self, should_fail: bool = False):

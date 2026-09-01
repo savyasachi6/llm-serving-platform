@@ -28,14 +28,19 @@ For detailed architecture diagrams, refer to [Architecture Overview](docs/archit
 
 | Workload Role | Model / Adapter | Quantization | Engine / Target | Source / Location |
 | :--- | :--- | :--- | :--- | :--- |
-| **Triage & Classification** | `meta-llama/Llama-3.2-3B-Instruct` + `reasoning-lora` | 4-bit AWQ | vLLM | HuggingFace Hub / Container Cache |
-| **PII Redaction & Security** | `meta-llama/Llama-3.2-3B-Instruct` + `reflection-lora`| 4-bit AWQ | vLLM | HuggingFace Hub / Container Cache |
-| **Response Synthesis** | `meta-llama/Llama-3.2-3B-Instruct` | 4-bit AWQ | vLLM | HuggingFace Hub / Container Cache |
-| **Local CPU/Dev Fallback** | `llama3:8b` | Q4_K_M | Ollama | Local Volume (`ollama_data`) |
+| **Triage & Classification** | `Qwen/Qwen2.5-0.5B-Instruct` + `reasoning-lora` | 4-bit AWQ | vLLM (Throughput) | HuggingFace Hub / Container Cache |
+| **PII Redaction & Security** | `Qwen/Qwen2.5-0.5B-Instruct` + `reflection-lora`| 4-bit AWQ | vLLM (Throughput) | HuggingFace Hub / Container Cache |
+| **Response Synthesis** | `Qwen/Qwen2.5-1.5B-Instruct` | 4-bit AWQ | vLLM (Precision) | HuggingFace Hub / Container Cache |
+| **Local CPU/Dev Fallback** | `llama3:8b` | Q4_K_M | Ollama (Legacy) | Local Volume (`ollama_data`) |
 | **Fast Dev & Unit Tests** | `MockBackend` | N/A | In-Memory / Python | 0s Boot / Zero Weights |
 
 > For in-depth instructions on local testing, Docker Compose, and cloud deployments, see the [Testing & Execution Guide](docs/operations/testing_and_running_guide.md).
 > To understand how Docker, Kubernetes, and the Gateway communicate, see the [System Architecture & Flow Guide](docs/architecture/system_flow_guide.md).
+> To understand Dual-Engine (Precision + Throughput) serving and Multi-LoRA hot-swapping, see the [Heterogeneous Serving & Multi-LoRA Guide](docs/architecture/heterogeneous_serving_and_multi_lora_guide.md).
+> For the deep-dive mathematical and CUDA kernel breakdown of Multi-LoRA, see the [Multi-LoRA & Heterogeneous Serving Explained Guide](docs/architecture/multi_lora_and_heterogeneous_serving_explained.md).
+> To explore the interactive UI and Kubernetes microservices, see the [Frontend Playground & Kubernetes Guide](docs/architecture/frontend_playground_and_kubernetes_guide.md).
+> For the complete debugging postmortem and troubleshooting chronicle, see the [Docker & Kubernetes Troubleshooting Guide](docs/operations/docker_and_kubernetes_troubleshooting_guide.md).
+> To benchmark the cluster and understand Tenant Isolation across pods, see the [Stress Testing Guide](docs/operations/stress_testing_guide.md).
 
 ## 🧪 Testing & Quick Run
 
@@ -83,10 +88,24 @@ The easiest way to start development is using Docker Compose. It spins up all ap
 
 *(To run the full stack with the vLLM GPU engine, append `--profile gpu` to the compose command).*
 
-## ☁️ Deploying to Kubernetes (GCP / Local)
+## ☁️ Deploying to Kubernetes (GCP / Local Minikube)
 
-The platform is designed to scale horizontally on Google Kubernetes Engine (GKE) or test locally via Docker Desktop / KinD using **Kustomize**.
+The platform is designed to scale horizontally on Google Kubernetes Engine (GKE) or test locally via **Minikube** (for native Windows GPU passthrough) using **Kustomize**.
 The Kubernetes manifests are located in `infra/kubernetes/base` and deploy the entire stack: `gateway`, `agent-worker`, `playground` (UI), and `vllm`.
+
+### Local Windows GPU Setup (Minikube)
+Because standard KinD/Docker Desktop Kubernetes on Windows cannot pass GPUs into the nested node VMs, this project requires **Minikube** running natively inside a Linux WSL2 distribution (e.g., Ubuntu) for local GPU testing. 
+
+> [!WARNING]
+> You **cannot** run these Minikube commands from Windows PowerShell. You must install the NVIDIA Container Toolkit inside your WSL2 Linux distro, and run Minikube from inside that Linux terminal.
+
+```bash
+# 1. Start Minikube with native Docker driver and GPU passthrough (Run inside WSL2 Linux)
+minikube start --driver=docker --gpus=all
+
+# 2. Enable the NVIDIA device plugin so K8s recognizes the GPU
+minikube addons enable nvidia-device-plugin
+```
 
 > **Important:** In Kubernetes, services communicate via **internal DNS names** (e.g., `http://gateway:80`, `http://agent-worker:8001`), not `localhost`. To access services from your browser, use `kubectl port-forward`. See the [System Architecture & Flow Guide](docs/architecture/system_flow_guide.md) for the full service communication map.
 

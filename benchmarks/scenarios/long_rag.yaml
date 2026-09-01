@@ -1,0 +1,13 @@
+name: "long_rag"
+description: "Tests chunked prefill performance with a long context"
+concurrency: 5
+requests: 50
+workload_type: "chat"
+payload:
+  model: "Qwen/Qwen2.5-1.5B-Instruct"
+  messages:
+    - role: "system"
+      content: "You are a helpful assistant. Use the following context to answer the question: [Very long context... (simulated)]"
+    - role: "user"
+      content: "What is the capital of France based on the context?"
+  max_tokens: 100

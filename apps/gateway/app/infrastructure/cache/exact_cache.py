@@ -1,8 +1,10 @@
-from typing import Protocol, Optional
 import hashlib
 import json
+from typing import Optional, Protocol
+
 # pyrefly: ignore [missing-import]
 from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse
+
 
 class CachePolicy:
     @staticmethod

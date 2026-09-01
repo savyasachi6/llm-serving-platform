@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
-from app.orchestration.task_graph import AgentTask, AgentResult
+from typing import Any, Dict
+
+from app.orchestration.task_graph import AgentResult, AgentTask
+
 
 class BaseAgent(ABC):
     """

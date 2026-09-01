@@ -1,11 +1,13 @@
+# Force Docker Cache Bust 3
 from typing import Annotated
-from fastapi import Depends
+
 from app.application.admission_service import AdmissionService
 from app.application.routing_service import RoutingService
+from fastapi import Depends
 
 # Global instances
 _admission_service = AdmissionService()
-_routing_service = RoutingService(use_mock=True) # default to mock for testing phases
+_routing_service = RoutingService(use_mock=False) # disabled mock mode for production
 
 def get_admission_service() -> AdmissionService:
     return _admission_service

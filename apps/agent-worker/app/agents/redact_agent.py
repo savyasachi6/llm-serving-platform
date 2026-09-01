@@ -1,6 +1,7 @@
 from app.agents.base import BaseAgent
 from app.api_client import GatewayClient
 
+
 class RedactAgent(BaseAgent):
     def __init__(self):
         system_prompt = """You are an expert security and privacy compliance agent.

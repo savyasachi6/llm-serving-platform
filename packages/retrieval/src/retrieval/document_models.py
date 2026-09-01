@@ -1,5 +1,7 @@
-from typing import List, Dict, Optional
+from typing import Dict, Optional
+
 from pydantic import BaseModel, Field
+
 
 class ChunkMetadata(BaseModel):
     tenant: str

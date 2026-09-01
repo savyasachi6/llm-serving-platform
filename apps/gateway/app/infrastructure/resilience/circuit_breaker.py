@@ -1,5 +1,5 @@
 import time
-from typing import Callable, Any
+
 
 class CircuitBreakerOpenException(Exception):
     pass

@@ -1,8 +1,10 @@
-import pytest
 import asyncio
-from fastapi import HTTPException
+
+import pytest
 from app.application.admission_service import AdmissionService
 from common.config import settings
+from fastapi import HTTPException
+
 
 @pytest.mark.asyncio
 async def test_admission_service_acquires_and_releases():

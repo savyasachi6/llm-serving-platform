@@ -1,13 +1,30 @@
+# [project] Table (PEP 621 Standard)
+# Defines core package metadata and dependencies for this specific workspace member.
 [project]
+# The distribution package name used by Python packaging tools (pip, uv, hatch).
 name = "gateway"
+# The current semantic version of the gateway package.
 version = "0.1.0"
+# Specifies the minimum Python interpreter version required to run this package.
 requires-python = ">=3.12"
+# Subpackage-specific dependencies. Root workspace dependencies (FastAPI, Uvicorn, etc.)
+# are declared in the root pyproject.toml and shared across all workspace members.
 dependencies = []
 
+# [build-system] Table (PEP 517 / PEP 518 Standards)
+# Defines the build engine and backend used to package and install this project in editable mode.
 [build-system]
+# Tells packaging tools to install 'hatchling' as the build frontend.
 requires = ["hatchling"]
+# 'hatchling.build' is the actual build backend that compiles source code into wheels or editable links.
 build-backend = "hatchling.build"
 
+# [tool.hatch.build.targets.wheel] Table (Hatchling Configuration)
+# Configures how Hatchling discovers and packages source files into a Python wheel.
 [tool.hatch.build.targets.wheel]
+# By default, Hatchling looks for a directory matching the project name ('gateway/').
+# Since our source code lives in the 'app/' directory ('apps/gateway/app'), we explicitly
+# instruct Hatchling to treat 'app' as the root package to ship and link in editable mode.
 packages = ["app"]
+
 

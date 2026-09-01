@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+
 import httpx
 from common.telemetry import setup_logging
+from fastapi import FastAPI
 
 # Global HTTP client
 http_client: httpx.AsyncClient = None

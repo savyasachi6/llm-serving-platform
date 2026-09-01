@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
+from app.api.routes import chat_completions, health, metrics
 from app.lifespan import lifespan
-from app.api.routes import health, metrics, chat_completions
 from app.shared.ids import generate_request_id, generate_trace_id
 from common.telemetry import request_id_var, trace_id_var
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Agentic LLM Serving Gateway",

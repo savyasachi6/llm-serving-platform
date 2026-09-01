@@ -1,0 +1,66 @@
+# --- vLLM Precision Deployment ---
+# Dedicated high-accuracy inference engine for reasoning and response synthesis.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-precision
+  labels:
+    app: vllm-precision
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-precision
+  template:
+    metadata:
+      labels:
+        app: vllm-precision
+    spec:
+      containers:
+        - name: vllm-precision
+          image: vllm/vllm-openai:latest
+          command:
+            - vllm
+            - serve
+            - Qwen/Qwen2.5-1.5B-Instruct
+            - --gpu-memory-utilization
+            - "0.45"
+            - --max-model-len
+            - "2048"
+            - --enforce-eager
+            - --port
+            - "8080"
+          ports:
+            - containerPort: 8080
+          env:
+            - name: VLLM_WSL2_ENABLE_PIN_MEMORY
+              value: "1"
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "4Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+              nvidia.com/gpu: "1"
+---
+# --- vLLM Precision Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-precision
+  labels:
+    app: vllm-precision
+spec:
+  selector:
+    app: vllm-precision
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080

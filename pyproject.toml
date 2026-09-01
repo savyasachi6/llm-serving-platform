@@ -1,3 +1,5 @@
+# [project] Table (PEP 621 Standard)
+# Root workspace project metadata and global dependencies shared across all microservices.
 [project]
 name = "agentic-llm-serving-platform"
 version = "0.1.0"
@@ -15,13 +17,19 @@ dependencies = [
     "pyyaml>=6.0.3",
 ]
 
+# [tool.uv.workspace] Table (UV Monorepo Workspace Configuration)
+# Tells 'uv' to manage apps and packages as linked workspace members in a single shared virtual environment.
 [tool.uv.workspace]
+# Includes all microservices under 'apps/' and shared internal libraries under 'packages/'
 members = ["apps/*", "packages/*"]
+# Excludes Node.js / React frontend from Python workspace resolution
 exclude = ["apps/playground"]
 
+# [tool.pytest.ini_options] Table (Pytest Test Runner Configuration)
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-q --asyncio-mode=auto --import-mode=importlib"
+# Adds application and package source directories to pytest sys.path during test execution
 pythonpath = [
     "apps/gateway",
     "apps/agent-worker",

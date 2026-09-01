@@ -1,6 +1,7 @@
 from app.agents.base import BaseAgent
 from app.api_client import GatewayClient
 
+
 class RespondAgent(BaseAgent):
     def __init__(self):
         system_prompt = """You are a senior customer support representative for our enterprise platform.

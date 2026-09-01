@@ -1,8 +1,9 @@
 import asyncio
 import logging
-from app.agents.triage_agent import TriageAgent
+
 from app.agents.redact_agent import RedactAgent
 from app.agents.respond_agent import RespondAgent
+from app.agents.triage_agent import TriageAgent
 
 logger = logging.getLogger("agent-worker.orchestrator")
 

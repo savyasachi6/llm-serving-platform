@@ -1,16 +1,27 @@
+# [project] Table (PEP 621 Standard)
+# Defines package metadata and dependencies for the Agent Worker orchestrator.
 [project]
+# Package name used by packaging tools.
 name = "agent-worker"
+# Package semantic version.
 version = "0.1.0"
+# Minimum required Python interpreter version.
 requires-python = ">=3.12"
+# Direct application dependencies.
 dependencies = [
     "fastapi",
     "uvicorn"
 ]
 
+# [build-system] Table (PEP 517 / PEP 518 Standards)
+# Configures Hatchling as the build backend for creating editable installs and wheels.
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# [tool.hatch.build.targets.wheel] Table (Hatchling Configuration)
+# Instructs Hatchling to discover and package the 'app/' directory ('apps/agent-worker/app').
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
 

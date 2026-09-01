@@ -1,0 +1,72 @@
+# --- vLLM Throughput & Multi-LoRA Deployment ---
+# High-speed inference engine equipped with Multi-LoRA dynamic adapter hot-swapping.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-throughput
+  labels:
+    app: vllm-throughput
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-throughput
+  template:
+    metadata:
+      labels:
+        app: vllm-throughput
+    spec:
+      containers:
+        - name: vllm-throughput
+          image: vllm/vllm-openai:latest
+          command:
+            - vllm
+            - serve
+            - Qwen/Qwen2.5-0.5B-Instruct
+            - --gpu-memory-utilization
+            - "0.30"
+            - --max-model-len
+            - "1024"
+            - --enforce-eager
+            - --enable-lora
+            - --max-loras
+            - "4"
+            - --lora-modules
+            - reasoning-lora=wuyanzu4692/task-13-Qwen-Qwen2.5-0.5B-Instruct
+            - reflection-lora=Hebisuke/Qwen2.5-0.5B-Instruct_bias2_0.5B
+            - --port
+            - "8080"
+          ports:
+            - containerPort: 8080
+          env:
+            - name: VLLM_WSL2_ENABLE_PIN_MEMORY
+              value: "1"
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "4Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+              nvidia.com/gpu: "1"
+---
+# --- vLLM Throughput Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-throughput
+  labels:
+    app: vllm-throughput
+spec:
+  selector:
+    app: vllm-throughput
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080

@@ -5,6 +5,7 @@ resources:
   - ../../base
 
 patches:
+  # Expose Gateway as NodePort for easy host curl access
   - target:
       kind: Service
       name: gateway

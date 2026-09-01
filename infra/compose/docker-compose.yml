@@ -19,8 +19,9 @@ services:
     environment:
       - GATEWAY_PORT=8000
       # In Docker Compose, services communicate via their service names.
-      # 'vllm' and 'ollama' resolve to the respective containers below.
-      - VLLM_BASE_URL=http://vllm:8080/v1
+      - VLLM_PRECISION_BASE_URL=http://vllm-precision:8080/v1
+      - VLLM_THROUGHPUT_BASE_URL=http://vllm-throughput:8080/v1
+      - VLLM_BASE_URL=http://vllm-precision:8080/v1
       - OLLAMA_BASE_URL=http://ollama:11434
     depends_on:
       - redis
@@ -57,18 +58,47 @@ services:
 
   # --- Inference Engines ---
 
-  # vLLM: High-performance GPU inference engine (only started with --profile gpu).
-  vllm:
+  # vLLM Precision: Dedicated high-accuracy reasoning & synthesis node.
+  vllm-precision:
     image: vllm/vllm-openai:latest
     ports:
       - "8080:8080"
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
     command: >
-      --model meta-llama/Meta-Llama-3-8B-Instruct
-      --gpu-memory-utilization 0.85
+      --model meta-llama/Llama-3.2-3B-Instruct
+      --gpu-memory-utilization 0.45
       --enable-prefix-caching
       --max-model-len 4096
+      --port 8080
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    profiles:
+      - gpu
+    networks:
+      - llm_net
+
+  # vLLM Throughput: High-speed node with Multi-LoRA dynamic hot-swapping.
+  vllm-throughput:
+    image: vllm/vllm-openai:latest
+    ports:
+      - "8081:8080"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
+    command: >
+      --model meta-llama/Llama-3.2-3B-Instruct
+      --quantization awq
+      --gpu-memory-utilization 0.45
+      --enable-prefix-caching
+      --max-model-len 4096
+      --enable-lora
+      --max-loras 4
+      --lora-modules reasoning-lora=PandurangMopgar/Llama-3.2-3B-Instruct-reasoning-lora reflection-lora=justmalhar/llama-3.2-3B-Instruct-Reflection-Beta-LoRA
       --port 8080
     deploy:
       resources:
@@ -126,7 +156,27 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     volumes:
-      - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    profiles:
+      - local
+      - gpu
+    networks:
+      - llm_net
+
+  # Grafana: Visual observability dashboards & metrics analytics.
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
     profiles:
       - local
       - gpu

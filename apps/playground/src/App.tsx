@@ -20,8 +20,10 @@ function App() {
     setResult(null);
     setError(null);
     
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+    
     try {
-      const response = await fetch('http://localhost:8001/api/process_ticket', {
+      const response = await fetch(`${apiUrl}/api/process_ticket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,7 +39,7 @@ function App() {
         setError(data.message || "An unknown error occurred.");
       }
     } catch (err) {
-      setError("Failed to connect to the backend. Is the API running on port 8001?");
+      setError(`Failed to connect to the backend at ${apiUrl}. Is the Agent Worker running on port 8001?`);
     } finally {
       setIsLoading(false);
     }

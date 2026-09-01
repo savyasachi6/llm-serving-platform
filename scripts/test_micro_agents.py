@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.abspath("packages/retrieval/src"))
 
 from app.agents.orchestrator import Orchestrator
 
+
 async def main():
     print("==================================================")
     print("[*] Micro-Agent Assembly Line - Pipeline Test")

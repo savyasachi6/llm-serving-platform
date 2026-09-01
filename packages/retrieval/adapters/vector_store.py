@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from retrieval.document_models import Chunk
+
 
 class VectorStoreAdapter(ABC):
     """

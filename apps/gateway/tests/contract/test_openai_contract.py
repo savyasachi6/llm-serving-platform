@@ -1,5 +1,5 @@
-import pytest
 from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse
+
 
 def test_openai_request_contract():
     # Validates that our internal representation can successfully serialize

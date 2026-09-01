@@ -1,7 +1,8 @@
 import asyncio
-from fastapi import HTTPException, status
-from pydantic import BaseModel
+
 from common.config import settings
+from fastapi import HTTPException, status
+
 
 class AdmissionService:
     def __init__(self):

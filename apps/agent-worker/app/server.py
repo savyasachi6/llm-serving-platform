@@ -1,7 +1,3 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import os
 
 # NOTE on imports:
 # The monorepo uses a uv workspace (see root pyproject.toml). When running via
@@ -9,8 +5,10 @@ import os
 # are automatically available on Python's path because they are listed as
 # workspace members. The root pyproject.toml also configures pytest pythonpath
 # so tests can resolve these imports. No sys.path hacks are needed.
-
 from app.agents.orchestrator import Orchestrator
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 app = FastAPI(title="Agent Worker Pipeline API")
 

@@ -1,9 +1,9 @@
 import httpx
-from fastapi import HTTPException, status
 from app.infrastructure.backends.base import BackendClient
 from app.lifespan import get_http_client
-from common.config import settings
 from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse
+from fastapi import HTTPException, status
+
 
 class VllmClient(BackendClient):
     def __init__(self, base_url: str):

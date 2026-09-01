@@ -1,0 +1,13 @@
+name: "shared_prefix_agents"
+description: "Tests prefix-caching gain using a shared system prompt"
+concurrency: 10
+requests: 100
+workload_type: "chat"
+payload:
+  model: "Qwen/Qwen2.5-0.5B-Instruct"
+  messages:
+    - role: "system"
+      content: "You are a strict PII redaction agent. You must replace all emails with [EMAIL]."
+    - role: "user"
+      content: "Please review: my email is test@example.com"
+  max_tokens: 50

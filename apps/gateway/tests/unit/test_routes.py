@@ -1,6 +1,7 @@
 import pytest
-from httpx import AsyncClient, ASGITransport
 from app.main import app
+from httpx import ASGITransport, AsyncClient
+
 
 @pytest.mark.asyncio
 async def test_health_check():
@@ -30,3 +31,17 @@ async def test_chat_completions_mock():
         assert data["model"] == "test-model"
         assert len(data["choices"]) == 1
         assert data["choices"][0]["message"]["content"] == "This is a mock response."
+
+@pytest.mark.asyncio
+async def test_heterogeneous_workload_routing():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        for workload in ["responder", "triage", "redactor", "local", "reasoning"]:
+            payload = {
+                "model": "llama-3.2-3b",
+                "messages": [{"role": "user", "content": f"test {workload}"}],
+                "workload_type": workload
+            }
+            response = await client.post("/v1/chat/completions", json=payload)
+            assert response.status_code == 200
+            assert response.json()["choices"][0]["message"]["content"] == "This is a mock response."
+

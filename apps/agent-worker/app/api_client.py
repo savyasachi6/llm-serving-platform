@@ -1,10 +1,17 @@
-import httpx
-import uuid
-import time
 import os
 import re
-from typing import List, Dict, Any, Optional
-from contracts.openai_models import ChatCompletionResponse, ChatCompletionResponseChoice, ChatMessage, UsageInfo
+import time
+import uuid
+from typing import Any, Dict, List, Optional
+
+import httpx
+from contracts.openai_models import (
+    ChatCompletionResponse,
+    ChatCompletionResponseChoice,
+    ChatMessage,
+    UsageInfo,
+)
+
 
 class GatewayClient:
     def __init__(self, gateway_url: Optional[str] = None):

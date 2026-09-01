@@ -2,6 +2,7 @@ import pytest
 from app.infrastructure.backends.mock_client import MockClient
 from contracts.openai_models import ChatCompletionRequest
 
+
 @pytest.mark.asyncio
 async def test_mock_backend_integration():
     client = MockClient()

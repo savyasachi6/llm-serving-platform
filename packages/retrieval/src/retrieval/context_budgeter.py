@@ -1,5 +1,7 @@
 from typing import List, Tuple
+
 from retrieval.document_models import Chunk
+
 
 class ContextBudgeter:
     def __init__(self, max_tokens: int = 4096, chars_per_token: float = 4.0):
