@@ -11,9 +11,10 @@ resources:
   - gateway-service.yaml
   # Horizontal Pod Autoscaler for the Gateway
   - hpa.yaml
-  # Heterogeneous vLLM Inference Engines (Precision + Throughput Multi-LoRA)
-  - vllm-precision-deployment.yaml
-  - vllm-throughput-deployment.yaml
+
+  # Heterogeneous vLLM Inference Engines (Responder + Agents Multi-LoRA)
+  - vllm-responder-deployment.yaml
+  - vllm-agents-deployment.yaml
   # Agent Worker service (Orchestration backend)
   - agent-worker-deployment.yaml
   - agent-worker-service.yaml

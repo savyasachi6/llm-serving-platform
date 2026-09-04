@@ -1,45 +1,98 @@
-# The apiVersion defines which version of the Kubernetes API to use to create this object.
-# 'apps/v1' is the stable API version for Deployments.
+# ==============================================================================
+# Kubernetes API Gateway Deployment Manifest
+# ==============================================================================
+# The Gateway is the central ingress control point for the serving platform.
+# It performs token bucket and semaphore admission control, tenant-isolated exact
+# match caching, and dynamic routing across heterogeneous model backends.
+# ==============================================================================
+
 apiVersion: apps/v1
-# The 'kind' indicates what type of Kubernetes resource this file represents.
-# A Deployment manages a set of identical pods, ensuring the specified number are running and handling updates.
 kind: Deployment
-# The metadata section provides data that helps uniquely identify the object, including its name.
 metadata:
-  # The name of the deployment, which will be used in logs and CLI commands (e.g., 'kubectl get deployment gateway').
   name: gateway
-# The spec section defines the desired state of the Deployment.
+  namespace: default
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/component: ingress-control
+    app.kubernetes.io/part-of: llm-serving-platform
+    app: gateway
 spec:
-  # 'replicas' tells Kubernetes how many pods (instances of the application) should be running at all times.
-  # Here, we want 3 identical gateway pods for high availability and load balancing.
+  # Maintain 3 identical replicas for high availability and zero-downtime rolling updates
   replicas: 3
-  # The selector defines how the Deployment finds which Pods to manage.
+  # RollingUpdate strategy ensures at least 2 pods remain available during deployments
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Allow 1 extra pod during rollout (total 4)
+      maxUnavailable: 0  # Ensure all 3 existing pods stay live until new pod is ready
+  # Pod selector: Links this Deployment controller to its managed Pod replicas
   selector:
-    # It will manage any pod that has the label 'app: gateway'.
     matchLabels:
       app: gateway
-  # The template defines the blueprint for the Pods that this Deployment will create.
   template:
-    # Metadata for the individual Pods.
     metadata:
-      # Labels attached to every pod. This MUST match the selector defined above.
       labels:
+        app.kubernetes.io/name: gateway
+        app.kubernetes.io/component: ingress-control
+        app.kubernetes.io/part-of: llm-serving-platform
         app: gateway
-    # Spec defines the actual containers running inside the Pod.
     spec:
       containers:
-        # A name for the specific container within the Pod.
         - name: gateway
-          # The Docker image to run. 'gateway:latest' assumes the image is available locally or from a configured registry.
+          # Image built from apps/gateway/Dockerfile
           image: gateway:v1.2
-          # 'IfNotPresent' uses the local image if available, avoiding unnecessary network pulls.
+          # IfNotPresent uses local cache if present, preventing unnecessary registry pulls
           imagePullPolicy: IfNotPresent
-          # Defines the network ports this container exposes.
           ports:
-            # The port inside the container where the FastAPI app is listening (as defined in the Dockerfile).
-            - containerPort: 8000
-          # Environment variables to pass into the container at runtime.
+            # Internal port where FastAPI / Uvicorn listens
+            - name: http
+              containerPort: 8000
+              protocol: TCP
           env:
-            # We explicitly tell the gateway application to use port 8000 via this environment variable.
             - name: GATEWAY_PORT
               value: "8000"
+            - name: GATEWAY_LOG_LEVEL
+              value: "INFO"
+            # Route to inference backends using Kubernetes CoreDNS service names:
+            - name: VLLM_RESPONDER_BASE_URL
+              value: "http://vllm-responder:8080/v1"
+            - name: VLLM_AGENTS_BASE_URL
+              value: "http://vllm-agents:8080/v1"
+            - name: VLLM_BASE_URL
+              value: "http://vllm-responder:8080/v1"
+            - name: OLLAMA_BASE_URL
+              value: "http://ollama:11434"
+            - name: USE_MOCK
+              value: "False"
+          # Resource requests are REQUIRED for the HorizontalPodAutoscaler (HPA) to calculate
+          # CPU utilization percentages. Without requests, HPA reports <unknown>/75% and fails to scale.
+          resources:
+            requests:
+              cpu: "200m"      # 0.2 CPU cores baseline
+              memory: "512Mi"  # 512 Megabytes RAM baseline
+            limits:
+              cpu: "1000m"     # Maximum 1 CPU core burst
+              memory: "1Gi"    # Maximum 1 Gigabyte RAM before OOMKill
+          # Liveness Probe: Verifies process is alive. Kills and restarts container if failing.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Readiness Probe: Verifies container is ready to accept user traffic.
+          # If failing, Kubernetes temporarily removes pod IP from Gateway Service endpoints.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          # Security Context: Hardens container execution
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false

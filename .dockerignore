@@ -1,0 +1,54 @@
+# Docker ignore file for Cost-efficient-LLM-serving monorepo
+# Prevents large binary artifacts, virtualenvs, local caches, and sensitive files
+# from being transferred in the Docker build context.
+
+# Large binaries and archives in root
+minikube-linux-amd64
+gateway.tar
+*.tar
+*.iso
+
+# Version control and editor files
+.git
+.gitignore
+.gitattributes
+.vscode
+.idea
+
+# Python virtual environments and caches
+.venv
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Node.js / Frontend build artifacts
+apps/playground/node_modules/
+apps/playground/dist/
+node_modules/
+
+# Local model weights and LoRA checkpoints (mount as volumes instead of baking into images)
+lora_adapters/
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# Local environment and secret files
+.env
+.env.local
+*.pem
+*.key
+
+# Temporary socket files
+*.sock
+/tmp/kvcached-ipc
+
+# Documentation build outputs
+docs/kvcached/index.html

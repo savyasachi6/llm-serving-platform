@@ -37,7 +37,9 @@ COPY packages packages
 
 # Run 'uv sync' to install all dependencies specified in the pyproject.toml files.
 # The '--no-dev' flag ensures we don't install development dependencies (like pytest) in the production image.
-# Set PYTHONPATH to include apps/gateway and all packages
+RUN uv sync --no-dev
+
+# Set PYTHONPATH to include apps/gateway and all internal shared packages
 ENV PYTHONPATH="/app/apps/gateway:/app/packages/contracts/src:/app/packages/common/src:/app/packages/prompt-engine/src:/app/packages/retrieval/src:/app/packages/evaluation/src"
 
 # Expose port 8000 to tell Docker that the container listens on this network port at runtime.

@@ -56,8 +56,8 @@ graph TD
 
 | Engine | Deployment Name | Model / Quantization | Memory Utilization | Specialized Workloads |
 | :--- | :--- | :--- | :--- | :--- |
-| **vLLM Precision** | `vllm-precision` | `meta-llama/Llama-3.2-3B-Instruct` | `0.45` (45% VRAM) | `responder`, `reasoning`, `synthesis`, `precision` |
-| **vLLM Throughput** | `vllm-throughput` | `meta-llama/Llama-3.2-3B-Instruct` (AWQ 4-bit) + Multi-LoRA | `0.45` (45% VRAM) | `triage`, `redactor`, `throughput`, `fast_action` |
+| **vLLM Precision** | `vllm-responder` | `meta-llama/Llama-3.2-3B-Instruct` | `0.45` (45% VRAM) | `responder`, `reasoning`, `synthesis`, `precision` |
+| **vLLM Throughput** | `vllm-agents` | `meta-llama/Llama-3.2-3B-Instruct` (AWQ 4-bit) + Multi-LoRA | `0.45` (45% VRAM) | `triage`, `redactor`, `throughput`, `fast_action` |
 | **Ollama Fallback** | `ollama` | `llama3:8b` (GGUF Q4_K_M) | CPU / RAM | `local`, `cpu`, offline batch |
 
 ---
@@ -68,7 +68,7 @@ graph TD
 vLLM's Multi-LoRA architecture allows a single frozen base model to host multiple fine-tuned parameter adapters in memory simultaneously. When a request arrives with a specific adapter specified in the `model` payload, vLLM applies the low-rank delta weights on the fly without reloading base model weights:
 
 ```yaml
-# Inside vllm-throughput deployment:
+# Inside vllm-agents deployment:
 command:
   - python3
   - -m
@@ -86,9 +86,9 @@ command:
 ```
 
 ### Request Flow:
-1. **Triage Agent** sends `model="reasoning-lora"`, `workload_type="triage"` $\to$ Gateway routes to `vllm-throughput` $\to$ vLLM activates the triage adapter.
-2. **Redact Agent** sends `model="reflection-lora"`, `workload_type="redactor"` $\to$ Gateway routes to `vllm-throughput` $\to$ vLLM activates the redaction adapter.
-3. **Respond Agent** sends `workload_type="responder"` $\to$ Gateway routes to `vllm-precision` $\to$ vLLM generates the final customer response with full float precision.
+1. **Triage Agent** sends `model="reasoning-lora"`, `workload_type="triage"` $\to$ Gateway routes to `vllm-agents` $\to$ vLLM activates the triage adapter.
+2. **Redact Agent** sends `model="reflection-lora"`, `workload_type="redactor"` $\to$ Gateway routes to `vllm-agents` $\to$ vLLM activates the redaction adapter.
+3. **Respond Agent** sends `workload_type="responder"` $\to$ Gateway routes to `vllm-responder` $\to$ vLLM generates the final customer response with full float precision.
 
 ---
 
@@ -131,7 +131,7 @@ kubectl patch daemonset nvidia-device-plugin-daemonset -n kube-system \
 
 > [!IMPORTANT]
 > **VRAM Budgeting Rule:**  
-> Because both `vllm-precision` and `vllm-throughput` share the same physical VRAM, both deployments MUST set `--gpu-memory-utilization 0.45` to prevent CUDA Out-Of-Memory (OOM) errors.
+> Because both `vllm-responder` and `vllm-agents` share the same physical VRAM, both deployments MUST set `--gpu-memory-utilization 0.45` to prevent CUDA Out-Of-Memory (OOM) errors.
 
 ---
 
@@ -142,19 +142,19 @@ In [`apps/gateway/app/application/routing_service.py`](../../apps/gateway/app/ap
 ```python
 class RoutingService:
     def __init__(self, use_mock: bool = False):
-        self.vllm_precision = MockClient() if use_mock else VllmClient(base_url=settings.vllm_precision_base_url)
-        self.vllm_throughput = MockClient() if use_mock else VllmClient(base_url=settings.vllm_throughput_base_url)
+        self.vllm_responder = MockClient() if use_mock else VllmClient(base_url=settings.vllm_responder_base_url)
+        self.vllm_agents = MockClient() if use_mock else VllmClient(base_url=settings.vllm_agents_base_url)
         self.ollama = MockClient() if use_mock else OllamaClient()
         
     def get_backend(self, workload_type: str) -> BackendClient:
         if workload_type in ("responder", "reasoning", "precision", "synthesis"):
-            return self.vllm_precision
+            return self.vllm_responder
         elif workload_type in ("triage", "redactor", "throughput", "fast_action", "classification"):
-            return self.vllm_throughput
+            return self.vllm_agents
         elif workload_type in ("local", "cpu"):
             return self.ollama
         else:
-            return self.vllm_throughput
+            return self.vllm_agents
 ```
 
 ---

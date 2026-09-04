@@ -1,6 +1,6 @@
 # NVIDIA GPU Time-Slicing ConfigMap
 # Enables fractional GPU sharing by advertising 4 virtual GPU replicas per physical GPU.
-# This allows vllm-precision and vllm-throughput to run concurrently on a single physical card.
+# This allows vllm-responder and vllm-agents to run concurrently on a single physical card.
 apiVersion: v1
 kind: ConfigMap
 metadata:

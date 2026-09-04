@@ -1,24 +1,33 @@
-# Use the core v1 API for Services.
+# ==============================================================================
+# Kubernetes API Gateway Service Manifest
+# ==============================================================================
+# Provides a stable internal virtual IP (ClusterIP) and DNS name for the Gateway pods.
+# Other cluster services (such as agent-worker) communicate with the gateway via
+# http://gateway:80 or http://gateway.default.svc.cluster.local:80.
+# ==============================================================================
+
 apiVersion: v1
-# A Service defines a logical set of Pods and a policy by which to access them.
-# It acts as a stable internal load balancer and DNS name for the pods.
 kind: Service
 metadata:
-  # The name 'gateway' means other pods in the cluster can communicate with this service
-  # simply by making HTTP requests to 'http://gateway'. Kubernetes internal DNS resolves this.
   name: gateway
-spec:
-  # The selector determines which pods this service routes traffic to.
-  selector:
-    # It will route traffic to any pod that has the label 'app: gateway' (matching our Deployment).
+  namespace: default
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/component: ingress-control
+    app.kubernetes.io/part-of: llm-serving-platform
     app: gateway
-  # Define the ports that this service will expose.
+spec:
+  # ClusterIP is the default service type: assigns an internal IP reachable only inside the cluster
+  type: ClusterIP
+  # Pod selector: Matches pods with label 'app: gateway'. Kubernetes creates Endpoints
+  # for all healthy pods passing their readinessProbe.
+  selector:
+    app: gateway
   ports:
-    # TCP is the default protocol for HTTP web traffic.
-    - protocol: TCP
-      # The port that the Service itself listens on. 
-      # Other services will talk to 'http://gateway:80'.
+    - name: http
+      protocol: TCP
+      # The port exposed by the Service internally (clients connect to port 80)
       port: 80
-      # The port on the underlying Pod that the traffic should be forwarded to.
-      # The gateway container is listening on 8000, so we forward 80 -> 8000.
+      # The target port on the container where the application listens (8000)
+      # Kubernetes iptables / IPVS translates port 80 -> containerPort 8000
       targetPort: 8000

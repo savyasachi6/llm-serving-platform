@@ -1,76 +1,182 @@
-# Docker Compose file for the Agentic LLM Serving Platform.
-# This orchestrates all services for local development.
+# ==============================================================================
+# Agentic LLM Serving Platform - Docker Compose Configuration
+# ==============================================================================
+# Orchestrates the complete multi-service platform for local development and testing.
+# Supports two operational profiles:
+#   - local: Runs lightweight services (Gateway, Agent Worker, Playground UI,
+#            Redis, Qdrant, Prometheus, Grafana) with CPU-based Ollama inference.
+#   - gpu:   Runs the full GPU-accelerated stack featuring the kvcached dynamic VRAM
+#            manager and heterogeneous vLLM dual engines with Multi-LoRA support.
 #
-# Usage:
-#   Local (CPU/Ollama):  docker compose -f infra/compose/docker-compose.yml --profile local up -d --build
-#   GPU (vLLM):          docker compose -f infra/compose/docker-compose.yml --profile gpu up -d --build
-version: '3.8'
+# Quick Start Commands:
+#   CPU/Local Dev: docker compose -f infra/compose/docker-compose.yml --profile local up -d --build
+#   GPU Dev:       docker compose -f infra/compose/docker-compose.yml --profile gpu up -d --build
+#   Validate:      docker compose -f infra/compose/docker-compose.yml config
+#   Shutdown:      docker compose -f infra/compose/docker-compose.yml --profile local --profile gpu down
+#   Full Cleanup:  docker compose -f infra/compose/docker-compose.yml --profile local --profile gpu down -v
+# ==============================================================================
 
 services:
-  # --- Application Services ---
+  # ----------------------------------------------------------------------------
+  # Application Services (Control Plane & Frontend)
+  # ----------------------------------------------------------------------------
 
-  # The API Gateway: ingress, admission control, caching, routing.
+  # API Gateway: Primary HTTP ingress, admission control, tenant caching, and routing.
+  # Handles client traffic and routes to either vLLM or Ollama backends based on workload_type.
   gateway:
     build:
       context: ../../
       dockerfile: apps/gateway/Dockerfile
+    image: gateway:v1.2
+    container_name: llm-gateway
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT
+      # Exposes Swagger API docs at http://localhost:8000/docs
       - "8000:8000"
     environment:
       - GATEWAY_PORT=8000
-      # In Docker Compose, services communicate via their service names.
-      - VLLM_PRECISION_BASE_URL=http://vllm-precision:8080/v1
-      - VLLM_THROUGHPUT_BASE_URL=http://vllm-throughput:8080/v1
-      - VLLM_BASE_URL=http://vllm-precision:8080/v1
+      - GATEWAY_LOG_LEVEL=${GATEWAY_LOG_LEVEL:-INFO}
+      - GLOBAL_AGENT_CONCURRENCY=${GLOBAL_AGENT_CONCURRENCY:-50}
+      - PER_BACKEND_CONCURRENCY=${PER_BACKEND_CONCURRENCY:-20}
+      - PER_WORKFLOW_CONCURRENCY=${PER_WORKFLOW_CONCURRENCY:-10}
+      # Service Discovery via Docker Compose internal DNS names:
+      - VLLM_RESPONDER_BASE_URL=http://vllm-responder:8080/v1
+      - VLLM_AGENTS_BASE_URL=http://vllm-agents:8080/v1
+      - VLLM_BASE_URL=http://vllm-responder:8080/v1
       - OLLAMA_BASE_URL=http://ollama:11434
+      - REDIS_URL=redis://redis:6379/0
+      - USE_MOCK=${USE_MOCK:-False}
+      - ENABLE_METRICS=true
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - llm_net
 
-  # The Agent Worker: multi-agent orchestration (Triage, Redact, Respond).
+  # Agent Worker: Multi-agent orchestration engine.
+  # Executes parallel Triage & PII Redaction micro-agents, followed by Response Synthesis.
   agent-worker:
     build:
       context: ../../
       dockerfile: apps/agent-worker/Dockerfile
+    image: agent-worker:v1.2
+    container_name: llm-agent-worker
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT
+      # Exposes ticket processing API at http://localhost:8001/api/process_ticket
       - "8001:8001"
     environment:
-      # Points to the gateway service above via Docker Compose DNS.
+      # Resolves to the gateway service via internal Docker DNS
       - GATEWAY_URL=http://gateway:8000
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - gateway
+      gateway:
+        condition: service_healthy
     networks:
       - llm_net
 
-  # The Playground: React/Vite frontend UI served via Nginx.
+  # Playground: Interactive React/TypeScript frontend UI.
+  # Multi-stage build (Node.js compiler -> lightweight Nginx web server).
   playground:
     build:
       context: ../../apps/playground
       dockerfile: Dockerfile
+    image: playground:v1.1
+    container_name: llm-playground
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT
+      # Open http://localhost:3000 in your browser to interact with the system
       - "3000:80"
+    environment:
+      # In the browser, API calls connect to host port 8001 for the agent worker
+      - VITE_API_URL=http://localhost:8001
     depends_on:
       - gateway
       - agent-worker
     networks:
       - llm_net
 
-  # --- Inference Engines ---
+  # ----------------------------------------------------------------------------
+  # Inference Engines (vLLM with kvcached GPU Pool or CPU Ollama Fallback)
+  # ----------------------------------------------------------------------------
 
-  # vLLM Precision: Dedicated high-accuracy reasoning & synthesis node.
-  vllm-precision:
-    image: vllm/vllm-openai:latest
+  # kvcached VRAM Manager Daemon:
+  # Sits alongside vLLM engines as a sidecar/daemon. It pools physical GPU VRAM and
+  # dynamically allocates physical memory pages to engines on-demand via a shared IPC Unix domain
+  # socket (/tmp/kvcached-ipc/kvcached.sock). Prevents static memory pre-allocation OOMs.
+  kvcached:
+    image: ghcr.io/ovg-project/kvcached:latest
+    container_name: llm-kvcached
+    runtime: nvidia
+    restart: unless-stopped
+    volumes:
+      # Shared IPC socket volume: vLLM containers mount this same directory to communicate
+      - /tmp/kvcached-ipc:/tmp/kvcached-ipc
+    environment:
+      # Exposes all physical GPUs to the daemon for global memory management
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "test", "-S", "/tmp/kvcached-ipc/kvcached.sock"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    profiles:
+      - gpu
+    networks:
+      - llm_net
+
+  # vLLM Responder Engine:
+  # Dedicated high-accuracy inference engine for reasoning and customer response synthesis.
+  # Runs the full unquantized or lightly quantized model without LoRA adapters.
+  vllm-responder:
+    image: ghcr.io/ovg-project/kvcached-vllm:v0.24.0 # Patched kvcached vLLM image
+    container_name: llm-vllm-responder
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT
       - "8080:8080"
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
-    command: >
-      --model meta-llama/Llama-3.2-3B-Instruct
-      --gpu-memory-utilization 0.45
-      --enable-prefix-caching
-      --max-model-len 4096
-      --port 8080
+      - VLLM_WSL2_ENABLE_PIN_MEMORY=1
+      # Route KV cache requests dynamically through the IPC socket to kvcached:
+      - ENABLE_KVCACHED=true
+      - KVCACHED_AUTOPATCH=1
+      - KVCACHED_IPC_PATH=/tmp/kvcached-ipc/kvcached.sock
+    volumes:
+      # Mount the shared IPC socket directory from the kvcached container
+      - /tmp/kvcached-ipc:/tmp/kvcached-ipc
+    depends_on:
+      kvcached:
+        condition: service_healthy
+    # List syntax avoids YAML block scalar parsing ambiguities
+    command:
+      - --model
+      - meta-llama/Llama-3.2-3B-Instruct
+      # 0.90 is a virtual ceiling; kvcached manages physical allocation dynamically
+      - --gpu-memory-utilization
+      - "0.90"
+      - --enable-prefix-caching
+      - --max-model-len
+      - "4096"
+      - --port
+      - "8080"
     deploy:
       resources:
         reservations:
@@ -83,23 +189,48 @@ services:
     networks:
       - llm_net
 
-  # vLLM Throughput: High-speed node with Multi-LoRA dynamic hot-swapping.
-  vllm-throughput:
-    image: vllm/vllm-openai:latest
+  # vLLM Agents Engine:
+  # High-throughput inference engine for micro-agent tasks (Triage and PII Redaction).
+  # Dynamically hot-swaps between reasoning-lora (intent classification) and
+  # reflection-lora (PII removal) without reloading base model weights.
+  vllm-agents:
+    image: ghcr.io/ovg-project/kvcached-vllm:v0.24.0 # Patched kvcached vLLM image
+    container_name: llm-vllm-agents
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT
       - "8081:8080"
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN:-}
-    command: >
-      --model meta-llama/Llama-3.2-3B-Instruct
-      --quantization awq
-      --gpu-memory-utilization 0.45
-      --enable-prefix-caching
-      --max-model-len 4096
-      --enable-lora
-      --max-loras 4
-      --lora-modules reasoning-lora=PandurangMopgar/Llama-3.2-3B-Instruct-reasoning-lora reflection-lora=justmalhar/llama-3.2-3B-Instruct-Reflection-Beta-LoRA
-      --port 8080
+      - VLLM_WSL2_ENABLE_PIN_MEMORY=1
+      # Route KV cache requests dynamically through the IPC socket to kvcached:
+      - ENABLE_KVCACHED=true
+      - KVCACHED_AUTOPATCH=1
+      - KVCACHED_IPC_PATH=/tmp/kvcached-ipc/kvcached.sock
+    volumes:
+      # Mount the shared IPC socket directory
+      - /tmp/kvcached-ipc:/tmp/kvcached-ipc
+    depends_on:
+      kvcached:
+        condition: service_healthy
+    command:
+      - --model
+      - meta-llama/Llama-3.2-3B-Instruct
+      - --quantization
+      - awq
+      - --gpu-memory-utilization
+      - "0.90"
+      - --enable-prefix-caching
+      - --max-model-len
+      - "4096"
+      - --enable-lora
+      - --max-loras
+      - "4"
+      - --lora-modules
+      - reasoning-lora=PandurangMopgar/Llama-3.2-3B-Instruct-reasoning-lora
+      - reflection-lora=justmalhar/llama-3.2-3B-Instruct-Reflection-Beta-LoRA
+      - --port
+      - "8080"
     deploy:
       resources:
         reservations:
@@ -112,35 +243,56 @@ services:
     networks:
       - llm_net
 
-  # Ollama: Local CPU inference fallback (only started with --profile local).
+  # Ollama: Local CPU inference fallback for environments without an NVIDIA GPU.
+  # Pulls and runs quantized GGUF models on system RAM/CPU.
   ollama:
     image: ollama/ollama:latest
+    container_name: llm-ollama
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT
       - "11434:11434"
     volumes:
+      # Persistent named volume preserves downloaded models across restarts
       - ollama_data:/root/.ollama
     profiles:
       - local
     networks:
       - llm_net
 
-  # --- Infrastructure ---
+  # ----------------------------------------------------------------------------
+  # Data Stores & Observability Infrastructure
+  # ----------------------------------------------------------------------------
 
-  # Redis: Used for caching and session state.
+  # Redis: In-memory cache for exact-match semantic caching (keyed with tenant_scope)
+  # and session state. Minimizes redundant LLM generation calls.
   redis:
     image: redis:alpine
+    container_name: llm-redis
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - llm_net
 
-  # Qdrant: Vector database for RAG retrieval.
+  # Qdrant: Vector database for Retrieval-Augmented Generation (RAG).
+  # Stores document embeddings with cosine similarity distance search.
   qdrant:
     image: qdrant/qdrant:latest
+    container_name: llm-qdrant
+    restart: unless-stopped
     ports:
+      # REST API: 6333, gRPC: 6334
       - "6333:6333"
       - "6334:6334"
     volumes:
+      # Persistent named volume preserves vector indices across container recreation
       - qdrant_data:/qdrant/storage
     profiles:
       - local
@@ -148,14 +300,19 @@ services:
     networks:
       - llm_net
 
-  # Prometheus: Metrics collection and monitoring.
+  # Prometheus: Metrics collection engine.
+  # Periodically scrapes metrics from the Gateway at http://gateway:8000/metrics.
   prometheus:
     image: prom/prometheus:latest
+    container_name: llm-prometheus
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT - Web UI and PromQL queries at http://localhost:9090
       - "9090:9090"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
+      - --config.file=/etc/prometheus/prometheus.yml
     volumes:
+      # Mount read-only scrape configuration
       - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     profiles:
       - local
@@ -163,16 +320,21 @@ services:
     networks:
       - llm_net
 
-  # Grafana: Visual observability dashboards & metrics analytics.
+  # Grafana: Visual metrics dashboard and alerting.
+  # Auto-provisions Prometheus datasource and latency/cache dashboards.
   grafana:
     image: grafana/grafana:latest
+    container_name: llm-grafana
+    restart: unless-stopped
     ports:
+      # HOST_PORT:CONTAINER_PORT - Access UI at http://localhost:3001 (admin/admin)
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
+      # Auto-provision datasources and dashboards from configuration
       - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
@@ -183,9 +345,22 @@ services:
     networks:
       - llm_net
 
+# ------------------------------------------------------------------------------
+# Persistent Storage Volumes
+# ------------------------------------------------------------------------------
 volumes:
+  # Stores Ollama model weights (~4.7GB for llama3:8b) so they survive container removal
   ollama_data:
+    name: llm_ollama_data
+  # Stores Qdrant vector embeddings, collections, and payload indexes
   qdrant_data:
+    name: llm_qdrant_data
 
+# ------------------------------------------------------------------------------
+# Network Isolation
+# ------------------------------------------------------------------------------
 networks:
+  # Isolated bridge network connecting all microservices with automatic DNS resolution
   llm_net:
+    name: llm_serving_network
+    driver: bridge

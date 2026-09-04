@@ -56,8 +56,8 @@ In your Kubernetes cluster, the platform runs 5 distinct microservice deployment
 | **Playground UI** | `deployment/playground` | `1` | `http://playground:80` | `http://localhost:3000` |
 | **API Gateway** | `deployment/gateway` | `3` | `http://gateway:80` | `http://localhost:8000` |
 | **Agent Worker** | `deployment/agent-worker` | `3` | `http://agent-worker:8001` | `http://localhost:8001` |
-| **vLLM Precision** | `deployment/vllm-precision` | `1` | `http://vllm-precision:8080` | `http://localhost:8080` |
-| **vLLM Throughput** | `deployment/vllm-throughput` | `1` | `http://vllm-throughput:8080` | `http://localhost:8081` |
+| **vLLM Precision** | `deployment/vllm-responder` | `1` | `http://vllm-responder:8080` | `http://localhost:8080` |
+| **vLLM Throughput** | `deployment/vllm-agents` | `1` | `http://vllm-agents:8080` | `http://localhost:8081` |
 
 ---
 

@@ -188,7 +188,7 @@ kubectl port-forward svc/agent-worker 8001:8001
 python scripts/download_real_loras.py
 
 # 2. Start vLLM Precision (Port 8080 - Reasoning & Synthesis)
-docker run -d --name vllm-precision \
+docker run -d --name vllm-responder \
   --gpus all \
   -e VLLM_WSL2_ENABLE_PIN_MEMORY=1 \
   -p 8080:8080 \
@@ -201,7 +201,7 @@ docker run -d --name vllm-precision \
   --port 8080
 
 # 3. Start vLLM Throughput with Multi-LoRA (Port 8081 - Fast Actions & Adapters)
-docker run -d --name vllm-throughput \
+docker run -d --name vllm-agents \
   --gpus all \
   -e VLLM_WSL2_ENABLE_PIN_MEMORY=1 \
   -p 8081:8080 \

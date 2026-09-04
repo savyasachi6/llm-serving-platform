@@ -1,0 +1,105 @@
+# ==============================================================================
+# Kubernetes vLLM Agents Deployment & Service Manifest
+# ==============================================================================
+# High-speed inference engine equipped with Multi-LoRA dynamic adapter hot-swapping.
+# Serves the Qwen/Qwen2.5-0.5B-Instruct base model and registers multiple low-rank
+# adapters in memory simultaneously.
+#
+# Workload Mapping:
+#   - Triage Agent requests model="reasoning-lora" for fast intent classification
+#   - Redact Agent requests model="reflection-lora" for PII redaction
+#
+# Memory Strategy:
+#   Under GPU time-slicing, uses --gpu-memory-utilization 0.22 (~2.7GB VRAM).
+# ==============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-agents
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vllm-agents
+    app.kubernetes.io/component: inference-engine
+    app.kubernetes.io/part-of: llm-serving-platform
+    app: vllm-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-agents
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vllm-agents
+        app.kubernetes.io/component: inference-engine
+        app.kubernetes.io/part-of: llm-serving-platform
+        app: vllm-agents
+    spec:
+      containers:
+        - name: vllm-agents
+          image: vllm/vllm-openai:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - vllm
+            - serve
+            - Qwen/Qwen2.5-0.5B-Instruct
+            # 0.22 restricts physical VRAM usage (~2.7GB on 12GB GPU) for Qwen 0.5B + LoRAs
+            - --gpu-memory-utilization
+            - "0.22"
+            - --max-model-len
+            - "1024"
+            - --enforce-eager
+            - --enable-lora
+            - --max-loras
+            - "4"
+            - --lora-modules
+            - reasoning-lora=wuyanzu4692/task-13-Qwen-Qwen2.5-0.5B-Instruct
+            - reflection-lora=Hebisuke/Qwen2.5-0.5B-Instruct_bias2_0.5B
+            - --port
+            - "8080"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: VLLM_WSL2_ENABLE_PIN_MEMORY
+              value: "1"
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "4Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+---
+# ==============================================================================
+# vLLM Agents Internal Service
+# ==============================================================================
+# Exposes the Multi-LoRA vLLM API to the Gateway at http://vllm-agents:8080
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-agents
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vllm-agents
+    app.kubernetes.io/component: inference-engine
+    app.kubernetes.io/part-of: llm-serving-platform
+    app: vllm-agents
+spec:
+  type: ClusterIP
+  selector:
+    app: vllm-agents
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080

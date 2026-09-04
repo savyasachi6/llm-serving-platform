@@ -2,7 +2,7 @@ name: "long_rag"
 description: "Tests chunked prefill performance with a long context"
 concurrency: 5
 requests: 50
-workload_type: "chat"
+workload_type: "reasoning"
 payload:
   model: "Qwen/Qwen2.5-1.5B-Instruct"
   messages:

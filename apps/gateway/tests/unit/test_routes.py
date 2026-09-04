@@ -1,7 +1,15 @@
 import pytest
+from app.api.dependencies import get_routing_service
+from app.application.routing_service import RoutingService
 from app.main import app
 from httpx import ASGITransport, AsyncClient
 
+
+@pytest.fixture(autouse=True)
+def override_routing():
+    app.dependency_overrides[get_routing_service] = lambda: RoutingService(use_mock=True)
+    yield
+    app.dependency_overrides.clear()
 
 @pytest.mark.asyncio
 async def test_health_check():

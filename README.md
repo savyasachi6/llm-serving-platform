@@ -1,124 +1,83 @@
-# Agentic LLM Serving Platform
+# Cost-Efficient LLM Serving Platform
 
-A high-throughput, cost-efficient, caching-aware serving layer designed specifically for multi-agent LLM workflows. It serves as the intelligent bridge between client applications and underlying LLMs (like vLLM or Ollama), enforcing admission control, providing tenant-isolated caching, and abstracting the orchestration of complex AI tasks.
+## 🎯 Project Purpose
+This repository provides a high-throughput, cost-efficient, caching-aware serving layer designed specifically for multi-agent LLM workflows. It serves as the intelligent bridge between client applications and underlying LLMs (like vLLM or Ollama).
 
-## 🚀 Key Features
+## 💡 What Problem This Solves
+Running multi-agent AI systems often leads to massive token overhead and GPU memory exhaustion. Standard architectures fail when multiple agents request overlapping context simultaneously. This system solves that by enforcing admission control, providing tenant-isolated caching, and abstracting the orchestration of complex AI tasks using a unique `kvcached` IPC memory-sharing daemon and dynamic LoRA hot-swapping.
 
-*   **Bounded Admission Control:** Prevents system overload by shedding excess load (HTTP 503) instead of letting requests hang indefinitely in unbounded queues.
-*   **Heterogeneous Workload Routing:** Dynamically routes traffic based on workload type (e.g., routing complex reasoning to an 8-bit Gemma model, and high-volume text transformations to a 4-bit Llama model).
-*   **Multi-LoRA Dynamic Hot-Swapping:** A single vLLM instance serves multiple fine-tuned models (LoRA adapters) simultaneously on the same base model. The `triage` and `redactor` agents dynamically request specialized LoRAs (`reasoning` and `reflection`) at runtime, and vLLM hot-swaps them in milliseconds.
-*   **Micro-Agent Assembly Line:** Discards brittle "Genius Agent" patterns in favor of single-shot, hyper-focused micro-agents (Triage, Redact, Respond) that scale flawlessly on smaller 2B-3B models.
-*   **Strict Tenant Isolation:** Exact-match semantic caching respects `tenant_scope` and `auth_scope`, guaranteeing cross-tenant data boundaries. *(See the [Threat Model Mitigation Guide](docs/security/threat_model.md#1-cross-tenant-data-leakage-via-cache) for details on how cache keys are cryptographically enforced to prevent data leakage).*
-*   **Prefix-Caching Optimization:** Implements a deterministic Prompt Builder designed to maximize Prefix Caching hits on engines like vLLM.
-*   **Cloud Native (GPU Time-Slicing):** Fully containerized and orchestrated via Kubernetes. Utilizes NVIDIA GPU Time-slicing to share a single physical GPU across multiple heterogeneous model nodes locally.
+## 🏗️ High-Level Architecture Summary
+The system consists of an API Gateway, an Agent Worker for orchestration, a React frontend, a Redis cache, and two vLLM inference engines (`vllm-responder` and `vllm-agents`). A sidecar daemon called `kvcached` manages GPU memory pooling.
 
-## 🏗️ Architecture
+### How the System Works
+1. **Client Request**: A user submits a prompt via the Frontend or Gateway.
+2. **Gateway**: Checks Redis for an exact-match semantic cache (respecting tenant isolation). If a miss, routes to Agent Worker.
+3. **Agent Worker**: Orchestrates a pipeline: Triage -> Redact -> Respond.
+4. **kvcached Daemon**: Pre-allocates GPU VRAM and shares it via a Unix socket `/tmp/kvcached-ipc/kvcached.sock`.
+5. **vLLM Engines**: Request memory from `kvcached`. `vllm-agents` hot-swaps LoRAs for Triage/Redact. `vllm-responder` generates the final output.
 
-The monorepo contains several distinct modules:
+## 🖼️ Visual Architecture Diagram
 
-*   **`apps/gateway`**: The FastAPI ingress service handling admission, caching, and routing.
-*   **`apps/agent-worker`**: The orchestrator for complex multi-agent workflows (implementing a robust Task Graph).
-*   **`apps/playground`**: A Vite/React frontend UI to interact with the models and agents.
-*   **`packages/*`**: Shared libraries containing Contracts, Prompt-Engine hashing, and Retrieval (VectorDB) logic.
-*   **`infra/*`**: Docker Compose and Kubernetes Kustomize configurations for deployment (including definitions for all apps).
-
-For detailed architecture diagrams, refer to [Architecture Overview](docs/architecture/overview.md).
-
-## 🧠 Model Architecture & Storage
-
-| Workload Role | Model / Adapter | Quantization | Engine / Target | Source / Location |
-| :--- | :--- | :--- | :--- | :--- |
-| **Triage & Classification** | `Qwen/Qwen2.5-0.5B-Instruct` + `reasoning-lora` | 4-bit AWQ | vLLM (Throughput) | HuggingFace Hub / Container Cache |
-| **PII Redaction & Security** | `Qwen/Qwen2.5-0.5B-Instruct` + `reflection-lora`| 4-bit AWQ | vLLM (Throughput) | HuggingFace Hub / Container Cache |
-| **Response Synthesis** | `Qwen/Qwen2.5-1.5B-Instruct` | 4-bit AWQ | vLLM (Precision) | HuggingFace Hub / Container Cache |
-| **Local CPU/Dev Fallback** | `llama3:8b` | Q4_K_M | Ollama (Legacy) | Local Volume (`ollama_data`) |
-| **Fast Dev & Unit Tests** | `MockBackend` | N/A | In-Memory / Python | 0s Boot / Zero Weights |
-
-> For in-depth instructions on local testing, Docker Compose, and cloud deployments, see the [Testing & Execution Guide](docs/operations/testing_and_running_guide.md).
-> To understand how Docker, Kubernetes, and the Gateway communicate, see the [System Architecture & Flow Guide](docs/architecture/system_flow_guide.md).
-> To understand Dual-Engine (Precision + Throughput) serving and Multi-LoRA hot-swapping, see the [Heterogeneous Serving & Multi-LoRA Guide](docs/architecture/heterogeneous_serving_and_multi_lora_guide.md).
-> For the deep-dive mathematical and CUDA kernel breakdown of Multi-LoRA, see the [Multi-LoRA & Heterogeneous Serving Explained Guide](docs/architecture/multi_lora_and_heterogeneous_serving_explained.md).
-> To explore the interactive UI and Kubernetes microservices, see the [Frontend Playground & Kubernetes Guide](docs/architecture/frontend_playground_and_kubernetes_guide.md).
-> For the complete debugging postmortem and troubleshooting chronicle, see the [Docker & Kubernetes Troubleshooting Guide](docs/operations/docker_and_kubernetes_troubleshooting_guide.md).
-> To benchmark the cluster and understand Tenant Isolation across pods, see the [Stress Testing Guide](docs/operations/stress_testing_guide.md).
-
-## 🧪 Testing & Quick Run
-
-### 1. Run Automated Test Suite
-```bash
-# Run all 20 unit, integration, and security tests
-uv run pytest -v
-# or with direct virtualenv:
-.\.venv\Scripts\python -m pytest -v
+```mermaid
+flowchart LR
+    User[User / Client] -->|HTTPS Request| Ingress[Ingress / Load Balancer]
+    Ingress --> Gateway[Gateway Service]
+    Gateway --> Redis[(Redis Cache)]
+    Gateway --> Worker[Agent Worker Service]
+    Worker --> VLLM_A[vllm-agents (Triage/Redact)]
+    Worker --> VLLM_R[vllm-responder (Final)]
+    VLLM_A -.-> |IPC Socket| KVC[kvcached Daemon]
+    VLLM_R -.-> |IPC Socket| KVC
 ```
 
-### 2. Run Micro-Agent Assembly Line Pipeline
-Test the complete concurrent triage $\to$ PII redaction $\to$ response synthesis pipeline:
+## 🚀 Quick-Start Instructions
+
+### Prerequisites
+- Docker & Docker Compose
+- NVIDIA GPU (if running full vLLM engines)
+- Linux / WSL2 (for GPU support)
+
+### Local Development Path
+1. Copy the environment file: `cp .env.example .env`
+2. Start the mock backend for fast dev: `USE_MOCK=True docker compose up -d`
+3. Access Gateway at `http://localhost:8000/docs`
+
+### Docker & Docker Compose Path
+To run the full multi-engine pipeline locally using Docker Compose:
 ```bash
-python scripts/test_micro_agents.py
+docker compose -f docker-compose.yml up -d --build
+docker compose ps
 ```
+> See our [Docker Guide](docs/docker-guide.md) for more info.
 
-### 3. Run the Playground UI
-To test the frontend locally:
-```bash
-cd apps/playground
-npm install
-npm run dev
-```
-
-## 💻 Running Locally (Docker Compose)
-
-The easiest way to start development is using Docker Compose. It spins up all application services (Gateway, Agent Worker, Playground UI), infrastructure (Redis, Qdrant), and an inference engine (Ollama or vLLM).
-
-> **Note:** The `localhost` URLs below are Docker Compose port mappings from container ports to your host machine. Inside the containers, services communicate via Docker Compose DNS names (e.g., the agent-worker calls the gateway at `http://gateway:8000`, not `localhost`).
-
-1. **Clone and prepare the environment:**
-   ```bash
-   cp .env.example .env
-   ```
-2. **Start the Local Stack:**
-   ```bash
-   docker compose -f infra/compose/docker-compose.yml --profile local up -d --build
-   ```
-3. **Access Services (from your browser):**
-   * Gateway API Docs: `http://localhost:8000/docs`
-   * Playground UI: `http://localhost:3000`
-   * Agent Worker API: `http://localhost:8001`
-   * Qdrant Dashboard: `http://localhost:6333/dashboard`
-
-*(To run the full stack with the vLLM GPU engine, append `--profile gpu` to the compose command).*
-
-## ☁️ Deploying to Kubernetes (GCP / Local Minikube)
-
-The platform is designed to scale horizontally on Google Kubernetes Engine (GKE) or test locally via **Minikube** (for native Windows GPU passthrough) using **Kustomize**.
-The Kubernetes manifests are located in `infra/kubernetes/base` and deploy the entire stack: `gateway`, `agent-worker`, `playground` (UI), and `vllm`.
-
-### Local Windows GPU Setup (Minikube)
-Because standard KinD/Docker Desktop Kubernetes on Windows cannot pass GPUs into the nested node VMs, this project requires **Minikube** running natively inside a Linux WSL2 distribution (e.g., Ubuntu) for local GPU testing. 
-
-> [!WARNING]
-> You **cannot** run these Minikube commands from Windows PowerShell. You must install the NVIDIA Container Toolkit inside your WSL2 Linux distro, and run Minikube from inside that Linux terminal.
-
-```bash
-# 1. Start Minikube with native Docker driver and GPU passthrough (Run inside WSL2 Linux)
-minikube start --driver=docker --gpus=all
-
-# 2. Enable the NVIDIA device plugin so K8s recognizes the GPU
-minikube addons enable nvidia-device-plugin
-```
-
-> **Important:** In Kubernetes, services communicate via **internal DNS names** (e.g., `http://gateway:80`, `http://agent-worker:8001`), not `localhost`. To access services from your browser, use `kubectl port-forward`. See the [System Architecture & Flow Guide](docs/architecture/system_flow_guide.md) for the full service communication map.
-
-To deploy locally using `kubectl`:
+### Kubernetes Deployment Path
+To deploy to a cluster or Minikube:
 ```bash
 kubectl apply -k infra/kubernetes/base
+kubectl get pods -n llm-serving
 ```
+> See our [Kubernetes Guide](docs/kubernetes-guide.md) for details on scaling, resources, and IPC sockets.
 
-To access services from your browser after deploying:
-```bash
-kubectl port-forward svc/gateway 8000:80
-kubectl port-forward svc/playground 3000:80
-kubectl port-forward svc/agent-worker 8001:8001
-```
+## 🗂️ Documentation Navigation
 
-Refer to the [Kubernetes Deployment Guide](docs/operations/kubernetes_guide.md) and [Testing & Execution Guide](docs/operations/testing_and_running_guide.md) for step-by-step instructions.
+| Topic | Link |
+|---|---|
+| **Architecture** | [Architecture Overview](docs/architecture/overview.md) |
+| **Local Setup & Docker** | [Docker Guide](docs/docker-guide.md) |
+| **Kubernetes** | [Kubernetes Deployment Guide](docs/kubernetes-guide.md) |
+| **Troubleshooting** | [Troubleshooting Guide](docs/troubleshooting.md) |
+| **Configuration** | [Configuration Guide](docs/configuration.md) |
+| **Security & Secrets** | [Security Guide](docs/security/threat_model.md) |
+
+## 🧭 Choose Your Path
+- **I want to run the project locally**: Start with the [Docker Guide](docs/docker-guide.md).
+- **I want to deploy the project**: Read the [Kubernetes Guide](docs/kubernetes-guide.md).
+- **I am troubleshooting an issue**: Check the [Troubleshooting Guide](docs/troubleshooting.md).
+- **I want to understand the vLLM Memory Sharing**: View the [Architecture Overview](docs/architecture/overview.md) and the `kvcached` documentation.
+
+## 📂 Repository Structure Guide
+- `apps/gateway`: FastAPI ingress handling admission and caching.
+- `apps/agent-worker`: Orchestrator for complex workflows.
+- `infra/kubernetes/base`: Kustomize manifests for cluster deployment.
+- `docs/`: Comprehensive guides and architecture diagrams.
+- `docker-compose.yml`: Local multi-container orchestration.

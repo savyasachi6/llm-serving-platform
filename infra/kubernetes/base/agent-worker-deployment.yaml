@@ -1,37 +1,59 @@
-# Use the apps/v1 API, standard for Deployments in Kubernetes.
+# ==============================================================================
+# Kubernetes Agent Worker Deployment Manifest
+# ==============================================================================
+# The Agent Worker orchestrates the multi-agent assembly line.
+# It splits tickets into concurrent micro-agent tasks (Triage and PII Redaction),
+# enforces security barriers, and invokes the response synthesis agent via the Gateway.
+# ==============================================================================
+
 apiVersion: apps/v1
-# We use a Deployment to ensure that our agent-worker pods are kept running and can be updated easily.
 kind: Deployment
 metadata:
-  # Unique name for this deployment resource.
   name: agent-worker
+  namespace: default
+  labels:
+    app.kubernetes.io/name: agent-worker
+    app.kubernetes.io/component: orchestrator
+    app.kubernetes.io/part-of: llm-serving-platform
+    app: agent-worker
 spec:
-  # Number of concurrent agent-worker instances we want running.
-  # 3 replicas allow us to handle multiple tickets in parallel across different nodes.
+  # 3 replicas enable parallel execution of ticket processing workflows across cluster nodes
   replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
-    # This selector links the Deployment to the Pods it manages based on their labels.
     matchLabels:
       app: agent-worker
   template:
     metadata:
-      # Labels applied to every Pod created by this Deployment. Must match the selector.
       labels:
+        app.kubernetes.io/name: agent-worker
+        app.kubernetes.io/component: orchestrator
+        app.kubernetes.io/part-of: llm-serving-platform
         app: agent-worker
     spec:
       containers:
-        # The container definition for the agent-worker application.
         - name: agent-worker
-          # Refers to the Docker image we built in apps/agent-worker/Dockerfile.
           image: agent-worker:v1.2
-          # 'IfNotPresent' uses the local image if available, avoiding unnecessary network pulls.
           imagePullPolicy: IfNotPresent
           ports:
-            # The port that the uvicorn server inside the container is listening on.
-            - containerPort: 8001
+            - name: http
+              containerPort: 8001
+              protocol: TCP
           env:
-            # Environment variables injected into the container at runtime.
-            # Here we tell the agent-worker how to communicate with the gateway.
-            # 'http://gateway:80' resolves to the gateway Service defined in gateway-service.yaml.
+            # Connect to the gateway service via internal Kubernetes DNS name and port
             - name: GATEWAY_URL
               value: "http://gateway:80"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false

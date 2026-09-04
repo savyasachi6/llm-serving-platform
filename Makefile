@@ -20,3 +20,8 @@ down:
 
 logs:
 	docker compose logs -f
+
+build-k8s:
+	docker build -t gateway:v1.2 -f apps/gateway/Dockerfile .
+	docker build -t agent-worker:v1.2 -f apps/agent-worker/Dockerfile .
+	docker build -t playground:v1.1 apps/playground

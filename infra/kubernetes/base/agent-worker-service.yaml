@@ -1,21 +1,27 @@
-# Use the core Kubernetes API group for Services.
+# ==============================================================================
+# Kubernetes Agent Worker Service Manifest
+# ==============================================================================
+# Exposes the Agent Worker FastAPI application internally to other cluster pods
+# (such as an Ingress or the Playground UI).
+# Available at DNS endpoint: http://agent-worker:8001
+# ==============================================================================
+
 apiVersion: v1
-# Creating a Service to expose the agent-worker Pods to other parts of the cluster.
-# By default, this creates a 'ClusterIP' service, meaning it's only reachable from within the Kubernetes cluster.
 kind: Service
 metadata:
-  # The DNS name assigned to this service. Other pods can reach it at 'http://agent-worker'.
   name: agent-worker
+  namespace: default
+  labels:
+    app.kubernetes.io/name: agent-worker
+    app.kubernetes.io/component: orchestrator
+    app.kubernetes.io/part-of: llm-serving-platform
+    app: agent-worker
 spec:
-  # The selector dictates which Pods receive the traffic sent to this service.
+  type: ClusterIP
   selector:
-    # Traffic is routed to Pods with the label 'app: agent-worker'.
     app: agent-worker
   ports:
-    # We use TCP for standard web/API communication.
-    - protocol: TCP
-      # The port that this Service listens on.
-      # Other services will talk to 'http://agent-worker:8001'.
+    - name: http
+      protocol: TCP
       port: 8001
-      # The port on the actual agent-worker Pod where the application is running.
       targetPort: 8001

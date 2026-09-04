@@ -1,31 +1,58 @@
-# API version for autoscaling features.
+# ==============================================================================
+# Kubernetes HorizontalPodAutoscaler (HPA) Manifest
+# ==============================================================================
+# Automatically scales the Gateway Deployment pods based on observed CPU utilization.
+#
+# Scaling Mechanics:
+#   - Target: 75% average CPU utilization across all Gateway pods.
+#   - Scaling Formula: desiredReplicas = ceil[currentReplicas * (currentMetric / targetMetric)]
+#   - Min Replicas: 3 (guarantees baseline high availability)
+#   - Max Replicas: 20 (caps maximum cloud compute spend)
+#
+# CRITICAL DEPENDENCY:
+#   The HPA requires that the target Deployment (gateway-deployment.yaml) defines
+#   'resources.requests.cpu'. Without CPU requests, the Kubernetes metrics server
+#   cannot compute a utilization percentage, resulting in <unknown>/75% and scaling failure.
+# ==============================================================================
+
 apiVersion: autoscaling/v2
-# HorizontalPodAutoscaler automatically scales the number of Pods in a replication controller, deployment, replica set or stateful set based on observed CPU utilization (or, with custom metrics support, on some other application-provided metrics).
 kind: HorizontalPodAutoscaler
 metadata:
-  # The name of the HPA resource.
   name: gateway-hpa
+  namespace: default
+  labels:
+    app.kubernetes.io/name: gateway-hpa
+    app.kubernetes.io/component: autoscaler
+    app.kubernetes.io/part-of: llm-serving-platform
 spec:
-  # scaleTargetRef points to the resource that this HPA will scale.
+  # Target Deployment resource to scale
   scaleTargetRef:
-    # We are targeting a Deployment.
     apiVersion: apps/v1
     kind: Deployment
-    # Specifically, the deployment named 'gateway'.
     name: gateway
-  # The minimum number of replicas that the HPA will scale down to.
+  # Minimum number of pod replicas during quiet periods
   minReplicas: 3
-  # The maximum number of replicas that the HPA will scale up to during high load.
+  # Maximum number of pod replicas during high-traffic burst load
   maxReplicas: 20
-  # The metrics section defines what triggers a scaling event.
   metrics:
-  - type: Resource
-    resource:
-      # We are scaling based on CPU usage.
-      name: cpu
-      target:
-        # Utilization means it calculates a percentage of the requested CPU for the pods.
-        type: Utilization
-        # If the average CPU utilization across all pods exceeds 75%, it will add more pods (up to 20).
-        # If it drops significantly below, it will remove pods (down to 3).
-        averageUtilization: 75
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # Scale up when average CPU across all gateway pods exceeds 75% of requested CPU (150m out of 200m)
+          averageUtilization: 75
+  # Behavior configuration stabilizes scale-up and scale-down actions to prevent thrashing
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down after traffic drops
+      policies:
+        - type: Percent
+          value: 25                     # Scale down at most 25% of pods per minute
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0    # Scale up immediately when traffic spikes
+      policies:
+        - type: Percent
+          value: 100                    # Double pod count if load surges
+          periodSeconds: 15

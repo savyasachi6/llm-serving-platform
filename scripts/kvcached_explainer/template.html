@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>kvcached — Visual Explainer | LLM Serving Platform</title>
+  <meta name="description" content="Visual walkthrough of kvcached GPU memory elasticity for dual-vLLM multi-LoRA serving"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-diff.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+<style>
+{{CSS}}
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+<div id="pb"></div>
+<nav>
+  <div class="nb"><div class="nd"></div>kvcached Explainer</div>
+  <div class="nl"><a href="#problem">Problem</a><a href="#pipeline">Pipeline</a><a href="#how">How It Works</a></div>
+</nav>
+<main>
+<section id="hero" style="border-top:none;">
+  <div class="hi">
+    <div class="hc">🎯 Applied to Any Platform</div>
+    <h1>Why GPU Memory<br/>Is Being Wasted Right Now</h1>
+    <p class="hs" style="max-width:600px;margin:0 auto 48px;">A visual walkthrough of the static memory problem in a multi-engine vLLM setup — and exactly how <strong style="color:var(--kv-gold);">kvcached</strong> fixes it for Docker Compose and Kubernetes.</p>
+    <div class="hst">
+      <div><div class="v">12.2 GB</div><div class="lb">Total GPU VRAM</div></div>
+      <div><div class="v" style="background:linear-gradient(135deg,var(--danger),var(--warn));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">9.2 GB</div><div class="lb">Locked at boot today</div></div>
+      <div><div class="v" style="background:linear-gradient(135deg,var(--accent3),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">2.2x</div><div class="lb">More KV space with kvcached</div></div>
+      <div><div class="v">0</div><div class="lb">App code changes needed</div></div>
+    </div>
+  </div>
+</section>
+<section id="problem">
+  <div class="c">
+    <div class="ey">Section 1 — The Problem</div>
+    <h2>GPUs Are Hard-Partitioned at Boot</h2>
+    <p class="lead">The moment your two vLLM containers start, each locks a fixed VRAM slice for its KV cache — <em>forever</em> — even with zero requests. The charts below show your actual <code>docker-compose.yml</code> allocation.</p>
+    <div class="g2 rg">
+      <div class="cc">
+        <div class="cch"><div class="sd" style="background:var(--danger);box-shadow:0 0 8px var(--danger);"></div><div><h3>Without kvcached</h3><span>Static allocation — 12.2 GB total</span></div></div>
+        <div class="cw2"><canvas id="cB" width="210" height="210" style="max-width:210px;max-height:210px;"></canvas><div class="cl"><div class="big" style="color:var(--danger);">9.2 GB</div><div class="sm">locked at boot</div></div></div>
+        <div class="leg">
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Responder weights</div><div class="gb">1.2 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#818cf8;"></div>Responder KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" style="color:var(--danger);">5.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Agents weights</div><div class="gb">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#34d399;"></div>Agents KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" style="color:var(--danger);">3.7 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#374151;"></div>LoRA adapters</div><div class="gb">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#1f2937;"></div>Unusable gap</div><div class="gb">0.8 GB</div></div>
+        </div>
+        <div class="cal cdx"><div class="ic">⚠️</div><div><strong>Root cause of your 503s:</strong> vLLM fires 429 when its static block pool exhausts. With only 3.7 GB for 2 concurrent LoRA adapters, you OOM before hitting true GPU compute limits.</div></div>
+      </div>
+      <div class="cc">
+        <div class="cch"><div class="sd" style="background:var(--accent3);box-shadow:0 0 8px var(--accent3);"></div><div><h3>With kvcached</h3><span>Elastic allocation — shared dynamic pool</span></div></div>
+        <div class="cw2"><canvas id="cA" width="210" height="210" style="max-width:210px;max-height:210px;"></canvas><div class="cl"><div class="big" style="color:var(--accent3);">~8 GB</div><div class="sm">available to active engine</div></div></div>
+        <div class="leg">
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Responder weights (static)</div><div class="gb">1.2 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(129,140,248,.4);"></div>Responder KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" style="color:var(--accent3);">0→8 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Agents weights (static)</div><div class="gb">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(52,211,153,.4);"></div>Agents KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" style="color:var(--accent3);">0→8 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#374151;"></div>LoRA adapters</div><div class="gb">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#f59e0b;"></div>Shared dynamic pool</div><div class="gb" style="color:var(--kv-gold);">up to 8 GB</div></div>
+        </div>
+        <div class="cal csx"><div class="ic">✅</div><div><strong>Both engines share one pool.</strong> When Triage runs, Agents expands to ~8 GB. When Respond fires, Responder gets what it needs. Pages returned instantly on completion.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="pipeline">
+  <div class="c">
+    <div class="ey">Section 2 — The Micro-Agent Pipeline</div>
+    <h2>Memory State at Each Agent Step</h2>
+    <p class="lead">Your <code>agent-worker</code> runs <strong>Triage → Redact → Respond</strong>. Switch tabs to see VRAM state at each step.</p>
+    <div class="card rv">
+      <div class="tb">
+        <button class="tbt active" id="tbb" onclick="switchTab('b')">❌ Without kvcached</button>
+        <button class="tbt" id="tba" onclick="switchTab('a')">✅ With kvcached</button>
+      </div>
+      <div id="tab-b" class="tp active">
+        <div class="pf">
+          <div class="ps pt"><div class="nu">1</div><h4>Triage</h4><p>→ <strong>vllm-agents</strong> + <em>reasoning-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">3.7 GB ceiling<br/><small>5.5 GB IDLE wasted</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps prx"><div class="nu">2</div><h4>Redact</h4><p>→ <strong>vllm-agents</strong> + <em>reflection-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">2 LoRAs vs 3.7 GB<br/><small>⚠️ OOM risk</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> for synthesis</p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">5.5 GB ceiling<br/><small>3.7 GB IDLE wasted</small></div></div>
+        </div>
+        <div class="cal cdx" style="margin-top:20px;"><div class="ic">🚨</div><div><strong>Why your AdmissionService fires early:</strong> vLLM returns 429 when its static 3.7 GB block pool exhausts — not at true GPU compute capacity. Your semaphore escalates to HTTP 503.</div></div>
+      </div>
+      <div id="tab-a" class="tp">
+        <div class="pf">
+          <div class="ps pt"><div class="nu">1</div><h4>Triage</h4><p>→ <strong>vllm-agents</strong> + <em>reasoning-lora</em></p><div class="mt">Expands to ~8 GB<br/><small>Pages returned on completion</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps prx"><div class="nu">2</div><h4>Redact</h4><p>→ <strong>vllm-agents</strong> + <em>reflection-lora</em></p><div class="mt">Both LoRAs from shared pool<br/><small>✅ No OOM</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> gets freed pages</p><div class="mt">Expands to ~8 GB<br/><small>Pages handed over instantly</small></div></div>
+        </div>
+        <div class="cal csx" style="margin-top:20px;"><div class="ic">🎯</div><div><strong>Result:</strong> AdmissionService sheds load at real GPU compute capacity. You can safely raise <code>global_agent_concurrency</code>.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section>
+  <div class="c">
+    <div class="ey">Section 3 — Numbers</div>
+    <h2>Before vs. After on a standard GPU</h2>
+    <div class="ss rg" style="margin-bottom:16px;">
+      <div class="stx"><div class="n red">9.2 GB</div><div class="l">VRAM locked at boot today<br/>(responder 5.5 + agents 3.7)</div></div>
+      <div class="stx"><div class="n green">~1.5 GB</div><div class="l">VRAM used at boot with kvcached<br/>(weights only, zero KV pre-alloc)</div></div>
+      <div class="stx"><div class="n green">~8 GB</div><div class="l">Max KV available to whichever<br/>engine is actually serving</div></div>
+    </div>
+    <div class="ss rg">
+      <div class="stx"><div class="n red">3.7 GB</div><div class="l">Agents KV ceiling today<br/>for 2 concurrent LoRA adapters</div></div>
+      <div class="stx"><div class="n green">8+ GB</div><div class="l">Agents KV ceiling with kvcached<br/>when responder engine is idle</div></div>
+      <div class="stx"><div class="n purple">~2.2x</div><div class="l">Effective KV space increase for<br/>your most pressured engine</div></div>
+    </div>
+  </div>
+</section>
+<section id="how">
+  <div class="c">
+    <div class="ey">Section 4 — How It Works</div>
+    <h2>Think of It Like OS Virtual Memory — for GPU</h2>
+    <p class="lead">Your vLLM engine still "sees" a huge contiguous KV address space. Physical GPU RAM is only wired in as tokens generate, then returned to a shared pool when a sequence ends.</p>
+    <div class="hg rv">
+      <div class="hca"><div class="ic">📥</div><h4>Request Arrives</h4><p>kvcached maps physical GPU pages to the engine's virtual KV addresses on demand. No kernel rewrites needed.</p></div>
+      <div class="hco"><div class="ar">⇄</div><div class="lb2">CUDA VMM<br/>page mapping</div></div>
+      <div class="hca"><div class="ic">⚡</div><h4>Tokens Generate</h4><p>Attention kernels write KV tensors normally. Physical pages back them elastically as context grows.</p></div>
+      <div class="hco"><div class="ar">♻</div><div class="lb2">Pages<br/>returned</div></div>
+      <div class="hca"><div class="ic">🔄</div><h4>Sequence Finishes</h4><p>Physical pages unmapped and returned to the shared pool instantly. The other engine claims them immediately.</p></div>
+    </div>
+    <div class="cal cix rv" style="margin-top:24px;"><div class="ic">ℹ️</div><div><strong>What kvcached does NOT touch:</strong> model weight memory, LoRA adapter swapping time, attention compute complexity, or your gateway/routing code.</div></div>
+  </div>
+</section>
+
+
+
+
+</main>
+<footer>
+  <p style="margin-bottom:8px;"><strong>Cost-Efficient LLM Serving Platform</strong> — kvcached integration for dual-vLLM on RTX 5070 Ti</p>
+  <p><a href="https://github.com/ovg-project/kvcached" target="_blank">kvcached GitHub</a> · <a href="../architecture/heterogeneous_serving_and_multi_lora_guide.md">Multi-LoRA Guide</a></p>
+</footer>
+<script>
+{{JS}}
+</script>
+</body>
+</html>

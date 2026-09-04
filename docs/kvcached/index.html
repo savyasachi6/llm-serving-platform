@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>kvcached — Visual Explainer | LLM Serving Platform</title>
+  <meta name="description" content="Visual walkthrough of kvcached GPU memory elasticity for dual-vLLM multi-LoRA serving"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-diff.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+<style>
+:root{--bg:#050c18;--surface:#0b1929;--surface2:#0f2035;--surface3:#132740;--border:rgba(99,179,255,0.10);--accent:#4f9cf9;--accent2:#a78bfa;--accent3:#34d399;--warn:#fbbf24;--danger:#f87171;--kv-gold:#f59e0b;--precision:#818cf8;--throughput:#34d399;--text:#dce9f9;--muted:#5e7fa0;--radius:14px;--font-mono:'JetBrains Mono',monospace;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}html{scroll-behavior:smooth;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:15px;line-height:1.6;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(79,156,249,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(79,156,249,.025) 1px,transparent 1px);background-size:48px 48px;}
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(120px);opacity:.12;}
+.orb-1{width:600px;height:600px;background:var(--precision);top:-200px;left:-150px;}.orb-2{width:500px;height:500px;background:var(--throughput);bottom:-150px;right:-120px;}.orb-3{width:400px;height:400px;background:var(--kv-gold);top:50%;left:40%;transform:translate(-50%,-50%);}
+::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
+#pb{position:fixed;top:0;left:0;height:3px;z-index:1000;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));width:0%;box-shadow:0 0 12px var(--accent);}
+nav{position:fixed;top:3px;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 40px;background:rgba(5,12,24,.82);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);}
+.nb{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;}.nd{width:8px;height:8px;border-radius:50%;background:var(--kv-gold);box-shadow:0 0 10px var(--kv-gold);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+.nl{display:flex;gap:24px;}.nl a{font-size:13px;color:var(--muted);text-decoration:none;font-weight:500;transition:color .2s;}.nl a:hover{color:var(--text);}
+main{position:relative;z-index:1;}.c{max-width:1080px;margin:0 auto;padding:0 28px;}
+#hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:120px 28px 80px;}
+.hi{max-width:760px;}.hc{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:99px;padding:6px 18px;font-size:12px;color:var(--kv-gold);font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:28px;}
+h1{font-size:clamp(32px,6vw,68px);font-weight:900;line-height:1.05;letter-spacing:-.03em;background:linear-gradient(145deg,#e8f4ff 0%,var(--precision) 45%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:24px;}
+.hs{font-size:18px;color:var(--muted);line-height:1.75;margin-bottom:48px;}
+.hst{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;}.hst .v{font-size:32px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}.hst .lb{font-size:12px;color:var(--muted);font-weight:500;}
+section{padding:96px 0;border-top:1px solid var(--border);}
+.ey{display:flex;align-items:center;gap:12px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;}.ey::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(79,156,249,.5),transparent);}
+h2{font-size:clamp(22px,3.5vw,36px);font-weight:800;letter-spacing:-.02em;margin-bottom:14px;}
+.lead{color:var(--muted);font-size:15px;line-height:1.8;max-width:720px;margin-bottom:48px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:28px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}@media(max-width:720px){.g2{grid-template-columns:1fr;}}
+.cc{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;}
+.cch{display:flex;align-items:center;gap:10px;margin-bottom:20px;}.cch .sd{width:8px;height:8px;border-radius:50%;flex-shrink:0;}.cch h3{font-size:14px;font-weight:700;}.cch span{font-size:12px;color:var(--muted);}
+.cw2{position:relative;height:230px;display:flex;align-items:center;justify-content:center;}
+.cl{position:absolute;text-align:center;pointer-events:none;}.cl .big{font-size:22px;font-weight:800;}.cl .sm{font-size:11px;color:var(--muted);}
+.leg{margin-top:16px;display:flex;flex-direction:column;gap:8px;}.lr{display:flex;align-items:center;justify-content:space-between;font-size:12px;}.lr .lg2{display:flex;align-items:center;gap:8px;}.lr .sw{width:10px;height:10px;border-radius:3px;flex-shrink:0;}.lr .gb{font-weight:700;color:var(--text);font-family:var(--font-mono);}
+.cal{border-radius:8px;padding:14px 18px;margin-top:20px;display:flex;gap:12px;align-items:flex-start;font-size:13px;line-height:1.65;}.cal .ic{font-size:18px;flex-shrink:0;margin-top:1px;}
+.cdx{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:#fca5a5;}.cdx strong{color:var(--danger);}
+.csx{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);color:#6ee7b7;}.csx strong{color:var(--accent3);}
+.cix{background:rgba(79,156,249,.08);border:1px solid rgba(79,156,249,.25);color:#93c5fd;}.cix strong{color:var(--accent);}
+.cwx{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:#fde68a;}.cwx strong{color:var(--warn);}
+.tb{display:flex;gap:4px;background:var(--surface3);border-radius:8px;padding:4px;margin-bottom:24px;}
+.tbt{flex:1;padding:9px 16px;border:none;cursor:pointer;background:transparent;color:var(--muted);font-size:13px;font-weight:600;border-radius:6px;transition:all .2s;font-family:'Inter',sans-serif;}.tbt.active{background:var(--surface);color:var(--text);box-shadow:0 2px 12px rgba(0,0,0,.5);}
+.tp{display:none;}.tp.active{display:block;animation:fsi .25s ease;}@keyframes fsi{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.pf{display:grid;grid-template-columns:1fr 28px 1fr 28px 1fr;align-items:center;}@media(max-width:640px){.pf{grid-template-columns:1fr;}.pa{display:none;}}
+.pa{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px;}
+.ps{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;}.ps .nu{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;margin-bottom:10px;}.ps h4{font-size:13px;font-weight:700;margin-bottom:6px;}.ps p{font-size:11px;color:var(--muted);line-height:1.6;}
+.mt{display:inline-block;margin-top:10px;padding:4px 10px;border-radius:99px;font-size:10px;font-weight:700;line-height:1.5;}
+.pt{border-color:rgba(52,211,153,.3);}.pt .nu{background:rgba(52,211,153,.15);color:var(--throughput);}.pt .mt{background:rgba(52,211,153,.12);color:var(--throughput);}
+.prx{border-color:rgba(251,191,36,.3);}.prx .nu{background:rgba(251,191,36,.15);color:var(--warn);}.prx .mt{background:rgba(251,191,36,.12);color:var(--warn);}
+.pp{border-color:rgba(129,140,248,.3);}.pp .nu{background:rgba(129,140,248,.15);color:var(--precision);}.pp .mt{background:rgba(129,140,248,.12);color:var(--precision);}
+.ss{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}@media(max-width:600px){.ss{grid-template-columns:1fr;}}
+.stx{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;}.stx .n{font-size:36px;font-weight:900;letter-spacing:-.04em;margin-bottom:6px;}.stx .l{font-size:12px;color:var(--muted);line-height:1.5;}
+.red{background:linear-gradient(135deg,var(--danger),var(--warn));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.green{background:linear-gradient(135deg,var(--accent3),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.purple{background:linear-gradient(135deg,var(--precision),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hg{display:grid;grid-template-columns:1fr 60px 1fr 60px 1fr;align-items:center;}@media(max-width:700px){.hg{grid-template-columns:1fr;}.hco{display:none;}}
+.hca{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:28px 22px;text-align:center;}.hca .ic{font-size:36px;margin-bottom:14px;}.hca h4{font-size:14px;font-weight:700;margin-bottom:8px;}.hca p{font-size:12px;color:var(--muted);line-height:1.65;}
+.hco{display:flex;flex-direction:column;align-items:center;gap:4px;}.hco .ar{font-size:22px;color:var(--kv-gold);}.hco .lb2{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:center;}
+.cf{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:20px;}
+.cfh{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);}
+.cfh .fn{font-family:var(--font-mono);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:10px;}
+.bpx{font-size:10px;padding:2px 9px;border-radius:99px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}
+.bn{background:rgba(52,211,153,.15);color:var(--accent3);}.bm{background:rgba(251,191,36,.15);color:var(--warn);}.by{background:rgba(79,156,249,.15);color:var(--accent);}
+.dts{display:flex;gap:6px;}.dts span{width:11px;height:11px;border-radius:50%;}
+code[class*="language-"],pre[class*="language-"]{font-family:var(--font-mono)!important;font-size:12.5px!important;background:#08111e!important;border-radius:0!important;}
+pre[class*="language-"]{margin:0!important;border-radius:0!important;padding:20px!important;max-height:420px;overflow:auto;}
+.token.deleted{color:#f87171!important;}.token.inserted{color:#34d399!important;}
+.chk{list-style:none;}.chk li{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:14px;}.chk li:last-child{border-bottom:none;}
+.ck{font-size:18px;flex-shrink:0;margin-top:1px;}.cb strong{display:block;margin-bottom:3px;}.cb .nt{font-size:12px;color:var(--muted);line-height:1.6;}
+code{font-family:var(--font-mono);font-size:.875em;background:rgba(255,255,255,.07);padding:1px 6px;border-radius:4px;}
+.ug{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}@media(max-width:600px){.ug{grid-template-columns:1fr;}}
+.ut{background:var(--surface2);border:1px solid rgba(129,140,248,.2);border-radius:var(--radius);padding:18px;display:flex;gap:14px;}.ut .ic{font-size:22px;flex-shrink:0;}.ut h4{font-size:13px;font-weight:700;color:var(--precision);margin-bottom:4px;}.ut p{font-size:12px;color:var(--muted);line-height:1.6;}
+footer{border-top:1px solid var(--border);padding:48px 28px;text-align:center;color:var(--muted);font-size:13px;}footer a{color:var(--accent);text-decoration:none;}
+.rv{opacity:0;transform:translateY(32px);transition:opacity .65s ease,transform .65s ease;}.rv.visible{opacity:1;transform:translateY(0);}
+.rg>*{opacity:0;transform:translateY(24px);transition:opacity .5s ease,transform .5s ease;}
+.rg.visible>*:nth-child(1){opacity:1;transform:none;transition-delay:0s;}.rg.visible>*:nth-child(2){opacity:1;transform:none;transition-delay:.1s;}.rg.visible>*:nth-child(3){opacity:1;transform:none;transition-delay:.2s;}.rg.visible>*:nth-child(4){opacity:1;transform:none;transition-delay:.3s;}
+
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+<div id="pb"></div>
+<nav>
+  <div class="nb"><div class="nd"></div>kvcached Explainer</div>
+  <div class="nl"><a href="#problem">Problem</a><a href="#pipeline">Pipeline</a><a href="#how">How It Works</a></div>
+</nav>
+<main>
+<section id="hero" style="border-top:none;">
+  <div class="hi">
+    <div class="hc">🎯 Applied to Any Platform</div>
+    <h1>Why GPU Memory<br/>Is Being Wasted Right Now</h1>
+    <p class="hs" style="max-width:600px;margin:0 auto 48px;">A visual walkthrough of the static memory problem in a multi-engine vLLM setup — and exactly how <strong style="color:var(--kv-gold);">kvcached</strong> fixes it for Docker Compose and Kubernetes.</p>
+    <div class="hst">
+      <div><div class="v">12.2 GB</div><div class="lb">Total GPU VRAM</div></div>
+      <div><div class="v" style="background:linear-gradient(135deg,var(--danger),var(--warn));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">9.2 GB</div><div class="lb">Locked at boot today</div></div>
+      <div><div class="v" style="background:linear-gradient(135deg,var(--accent3),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">2.2x</div><div class="lb">More KV space with kvcached</div></div>
+      <div><div class="v">0</div><div class="lb">App code changes needed</div></div>
+    </div>
+  </div>
+</section>
+<section id="problem">
+  <div class="c">
+    <div class="ey">Section 1 — The Problem</div>
+    <h2>GPUs Are Hard-Partitioned at Boot</h2>
+    <p class="lead">The moment your two vLLM containers start, each locks a fixed VRAM slice for its KV cache — <em>forever</em> — even with zero requests. The charts below show your actual <code>docker-compose.yml</code> allocation.</p>
+    <div class="g2 rg">
+      <div class="cc">
+        <div class="cch"><div class="sd" style="background:var(--danger);box-shadow:0 0 8px var(--danger);"></div><div><h3>Without kvcached</h3><span>Static allocation — 12.2 GB total</span></div></div>
+        <div class="cw2"><canvas id="cB" width="210" height="210" style="max-width:210px;max-height:210px;"></canvas><div class="cl"><div class="big" style="color:var(--danger);">9.2 GB</div><div class="sm">locked at boot</div></div></div>
+        <div class="leg">
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Responder weights</div><div class="gb">1.2 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#818cf8;"></div>Responder KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" style="color:var(--danger);">5.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Agents weights</div><div class="gb">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#34d399;"></div>Agents KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" style="color:var(--danger);">3.7 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#374151;"></div>LoRA adapters</div><div class="gb">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#1f2937;"></div>Unusable gap</div><div class="gb">0.8 GB</div></div>
+        </div>
+        <div class="cal cdx"><div class="ic">⚠️</div><div><strong>Root cause of your 503s:</strong> vLLM fires 429 when its static block pool exhausts. With only 3.7 GB for 2 concurrent LoRA adapters, you OOM before hitting true GPU compute limits.</div></div>
+      </div>
+      <div class="cc">
+        <div class="cch"><div class="sd" style="background:var(--accent3);box-shadow:0 0 8px var(--accent3);"></div><div><h3>With kvcached</h3><span>Elastic allocation — shared dynamic pool</span></div></div>
+        <div class="cw2"><canvas id="cA" width="210" height="210" style="max-width:210px;max-height:210px;"></canvas><div class="cl"><div class="big" style="color:var(--accent3);">~8 GB</div><div class="sm">available to active engine</div></div></div>
+        <div class="leg">
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Responder weights (static)</div><div class="gb">1.2 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(129,140,248,.4);"></div>Responder KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" style="color:var(--accent3);">0→8 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Agents weights (static)</div><div class="gb">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(52,211,153,.4);"></div>Agents KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" style="color:var(--accent3);">0→8 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#374151;"></div>LoRA adapters</div><div class="gb">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#f59e0b;"></div>Shared dynamic pool</div><div class="gb" style="color:var(--kv-gold);">up to 8 GB</div></div>
+        </div>
+        <div class="cal csx"><div class="ic">✅</div><div><strong>Both engines share one pool.</strong> When Triage runs, Agents expands to ~8 GB. When Respond fires, Responder gets what it needs. Pages returned instantly on completion.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="pipeline">
+  <div class="c">
+    <div class="ey">Section 2 — The Micro-Agent Pipeline</div>
+    <h2>Memory State at Each Agent Step</h2>
+    <p class="lead">Your <code>agent-worker</code> runs <strong>Triage → Redact → Respond</strong>. Switch tabs to see VRAM state at each step.</p>
+    <div class="card rv">
+      <div class="tb">
+        <button class="tbt active" id="tbb" onclick="switchTab('b')">❌ Without kvcached</button>
+        <button class="tbt" id="tba" onclick="switchTab('a')">✅ With kvcached</button>
+      </div>
+      <div id="tab-b" class="tp active">
+        <div class="pf">
+          <div class="ps pt"><div class="nu">1</div><h4>Triage</h4><p>→ <strong>vllm-agents</strong> + <em>reasoning-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">3.7 GB ceiling<br/><small>5.5 GB IDLE wasted</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps prx"><div class="nu">2</div><h4>Redact</h4><p>→ <strong>vllm-agents</strong> + <em>reflection-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">2 LoRAs vs 3.7 GB<br/><small>⚠️ OOM risk</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> for synthesis</p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">5.5 GB ceiling<br/><small>3.7 GB IDLE wasted</small></div></div>
+        </div>
+        <div class="cal cdx" style="margin-top:20px;"><div class="ic">🚨</div><div><strong>Why your AdmissionService fires early:</strong> vLLM returns 429 when its static 3.7 GB block pool exhausts — not at true GPU compute capacity. Your semaphore escalates to HTTP 503.</div></div>
+      </div>
+      <div id="tab-a" class="tp">
+        <div class="pf">
+          <div class="ps pt"><div class="nu">1</div><h4>Triage</h4><p>→ <strong>vllm-agents</strong> + <em>reasoning-lora</em></p><div class="mt">Expands to ~8 GB<br/><small>Pages returned on completion</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps prx"><div class="nu">2</div><h4>Redact</h4><p>→ <strong>vllm-agents</strong> + <em>reflection-lora</em></p><div class="mt">Both LoRAs from shared pool<br/><small>✅ No OOM</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> gets freed pages</p><div class="mt">Expands to ~8 GB<br/><small>Pages handed over instantly</small></div></div>
+        </div>
+        <div class="cal csx" style="margin-top:20px;"><div class="ic">🎯</div><div><strong>Result:</strong> AdmissionService sheds load at real GPU compute capacity. You can safely raise <code>global_agent_concurrency</code>.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section>
+  <div class="c">
+    <div class="ey">Section 3 — Numbers</div>
+    <h2>Before vs. After on a standard GPU</h2>
+    <div class="ss rg" style="margin-bottom:16px;">
+      <div class="stx"><div class="n red">9.2 GB</div><div class="l">VRAM locked at boot today<br/>(responder 5.5 + agents 3.7)</div></div>
+      <div class="stx"><div class="n green">~1.5 GB</div><div class="l">VRAM used at boot with kvcached<br/>(weights only, zero KV pre-alloc)</div></div>
+      <div class="stx"><div class="n green">~8 GB</div><div class="l">Max KV available to whichever<br/>engine is actually serving</div></div>
+    </div>
+    <div class="ss rg">
+      <div class="stx"><div class="n red">3.7 GB</div><div class="l">Agents KV ceiling today<br/>for 2 concurrent LoRA adapters</div></div>
+      <div class="stx"><div class="n green">8+ GB</div><div class="l">Agents KV ceiling with kvcached<br/>when responder engine is idle</div></div>
+      <div class="stx"><div class="n purple">~2.2x</div><div class="l">Effective KV space increase for<br/>your most pressured engine</div></div>
+    </div>
+  </div>
+</section>
+<section id="how">
+  <div class="c">
+    <div class="ey">Section 4 — How It Works</div>
+    <h2>Think of It Like OS Virtual Memory — for GPU</h2>
+    <p class="lead">Your vLLM engine still "sees" a huge contiguous KV address space. Physical GPU RAM is only wired in as tokens generate, then returned to a shared pool when a sequence ends.</p>
+    <div class="hg rv">
+      <div class="hca"><div class="ic">📥</div><h4>Request Arrives</h4><p>kvcached maps physical GPU pages to the engine's virtual KV addresses on demand. No kernel rewrites needed.</p></div>
+      <div class="hco"><div class="ar">⇄</div><div class="lb2">CUDA VMM<br/>page mapping</div></div>
+      <div class="hca"><div class="ic">⚡</div><h4>Tokens Generate</h4><p>Attention kernels write KV tensors normally. Physical pages back them elastically as context grows.</p></div>
+      <div class="hco"><div class="ar">♻</div><div class="lb2">Pages<br/>returned</div></div>
+      <div class="hca"><div class="ic">🔄</div><h4>Sequence Finishes</h4><p>Physical pages unmapped and returned to the shared pool instantly. The other engine claims them immediately.</p></div>
+    </div>
+    <div class="cal cix rv" style="margin-top:24px;"><div class="ic">ℹ️</div><div><strong>What kvcached does NOT touch:</strong> model weight memory, LoRA adapter swapping time, attention compute complexity, or your gateway/routing code.</div></div>
+  </div>
+</section>
+
+
+
+
+</main>
+<footer>
+  <p style="margin-bottom:8px;"><strong>Cost-Efficient LLM Serving Platform</strong> — kvcached integration for dual-vLLM on RTX 5070 Ti</p>
+  <p><a href="https://github.com/ovg-project/kvcached" target="_blank">kvcached GitHub</a> · <a href="../architecture/heterogeneous_serving_and_multi_lora_guide.md">Multi-LoRA Guide</a></p>
+</footer>
+<script>
+window.addEventListener('scroll',()=>{const e=document.getElementById('pb');const m=document.documentElement.scrollHeight-window.innerHeight;e.style.width=(window.scrollY/m*100)+'%';});
+const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target);}});},{threshold:.1});
+document.querySelectorAll('.rv,.rg').forEach(el=>obs.observe(el));
+function switchTab(id){document.querySelectorAll('.tbt').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));document.getElementById('tb'+id).classList.add('active');document.getElementById('tab-'+id).classList.add('active');}
+new Chart(document.getElementById('cB').getContext('2d'),{type:'doughnut',data:{labels:['Responder weights','Responder KV (LOCKED)','Agents weights','Agents KV (LOCKED)','LoRA adapters','Unusable gap'],datasets:[{data:[1.2,5.5,0.5,3.7,0.5,0.8],backgroundColor:['#4338ca','#818cf8','#065f46','#34d399','#374151','#1f2937'],borderColor:'#0b1929',borderWidth:3,hoverOffset:8}]},options:{cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${c.parsed} GB`}}},animation:{duration:1200,easing:'easeInOutQuart'}}});
+const cA=new Chart(document.getElementById('cA').getContext('2d'),{type:'doughnut',data:{labels:['Responder weights','Responder KV (elastic)','Agents weights','Agents KV (elastic)','LoRA adapters','Shared pool'],datasets:[{data:[1.2,0.3,0.5,0.3,0.5,9.4],backgroundColor:['#4338ca','rgba(129,140,248,.45)','#065f46','rgba(52,211,153,.45)','#374151','#f59e0b'],borderColor:'#0b1929',borderWidth:3,hoverOffset:8}]},options:{cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const l=['fixed','elastic 0-8 GB','fixed','elastic 0-8 GB','fixed','shared dynamic'];return ` ${c.label}: ${l[c.dataIndex]}`;},}}},animation:{duration:1400,easing:'easeInOutQuart'}}});
+let exp=true;setInterval(()=>{const v=exp?3.5:0.3,p=exp?6.2:9.4;cA.data.datasets[0].data[1]=v;cA.data.datasets[0].data[3]=v;cA.data.datasets[0].data[5]=p;cA.update('active');exp=!exp;},2400);
+anime({targets:'.hst > div',opacity:[0,1],translateY:[20,0],delay:anime.stagger(100,{start:600}),duration:800,easing:'easeOutExpo'});
+if(window.Prism)Prism.highlightAll();
+
+</script>
+</body>
+</html>

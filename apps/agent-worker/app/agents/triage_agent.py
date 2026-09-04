@@ -1,5 +1,6 @@
 from app.agents.base import BaseAgent
 from app.api_client import GatewayClient
+from common.config import settings
 
 
 class TriageAgent(BaseAgent):
@@ -26,7 +27,7 @@ Your sole responsibility is to classify incoming customer support tickets into e
         
         # Route to vLLM Throughput Node with Multi-LoRA Hot-Swapping
         response = await self.gateway.generate_completion(
-            model="reasoning-lora",
+            model=settings.vllm_triage_lora,
             messages=[
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": ticket_text}

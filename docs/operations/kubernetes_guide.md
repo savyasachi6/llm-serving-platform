@@ -52,7 +52,7 @@ If you want to simulate a production environment (with 2 nodes and a real Ingres
    ```
 
 ### 1.3 Heterogeneous Multi-Model Deployments & GPU Time-Slicing
-By default, Kubernetes locks a GPU to a single Pod. If you attempt to run two vLLM models (e.g. `vllm-precision` and `vllm-throughput`) on a machine with a single GPU, the second pod will hang in `Pending` forever.
+By default, Kubernetes locks a GPU to a single Pod. If you attempt to run two vLLM models (e.g. `vllm-responder` and `vllm-agents`) on a machine with a single GPU, the second pod will hang in `Pending` forever.
 
 To solve this locally, we use **NVIDIA GPU Time-Slicing**. This configuration tricks the Kubernetes NVIDIA device plugin into advertising a single physical GPU as multiple "Virtual GPUs" (e.g., 4 GPUs). 
 

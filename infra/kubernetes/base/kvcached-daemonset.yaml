@@ -1,0 +1,82 @@
+# ==============================================================================
+# Kubernetes kvcached VRAM Manager DaemonSet Manifest
+# ==============================================================================
+# A DaemonSet ensures that exactly one kvcached pod runs on every GPU worker node.
+# It manages physical VRAM globally across engines, dynamically allocating and
+# reclaiming memory pages over an IPC (Inter-Process Communication) Unix domain socket.
+#
+# Socket Communication Pattern:
+#   1. The kvcached DaemonSet mounts node hostPath /tmp/kvcached-ipc and creates
+#      the listening socket /tmp/kvcached-ipc/kvcached.sock.
+#   2. vLLM engine pods on the same node mount the same hostPath directory.
+#   3. vLLM bypasses its static memory allocator and requests physical pages
+#      from kvcached dynamically as sequences arrive and complete.
+# ==============================================================================
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kvcached
+  namespace: default
+  labels:
+    app.kubernetes.io/name: kvcached
+    app.kubernetes.io/component: vram-manager
+    app.kubernetes.io/part-of: llm-serving-platform
+    app: kvcached
+spec:
+  selector:
+    matchLabels:
+      app: kvcached
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kvcached
+        app.kubernetes.io/component: vram-manager
+        app.kubernetes.io/part-of: llm-serving-platform
+        app: kvcached
+    spec:
+      containers:
+        - name: kvcached
+          image: ghcr.io/ovg-project/kvcached:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            # Grant the memory manager visibility into all GPUs on the host node
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: "all"
+          volumeMounts:
+            # Mount the shared directory where kvcached.sock will be created
+            - name: kvcached-ipc
+              mountPath: /tmp/kvcached-ipc
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              nvidia.com/gpu: "1"
+              cpu: "500m"
+              memory: "512Mi"
+          # Liveness Probe: Verifies the Unix domain socket exists and is a valid socket file
+          livenessProbe:
+            exec:
+              command:
+                - test
+                - -S
+                - /tmp/kvcached-ipc/kvcached.sock
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          # Readiness Probe: Verifies socket is ready to accept IPC connections from vLLM
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -S
+                - /tmp/kvcached-ipc/kvcached.sock
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        # hostPath volume maps a directory from the worker node filesystem into the pod.
+        # DirectoryOrCreate ensures the host directory exists before mounting.
+        - name: kvcached-ipc
+          hostPath:
+            path: /tmp/kvcached-ipc
+            type: DirectoryOrCreate

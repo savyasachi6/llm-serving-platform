@@ -1,0 +1,98 @@
+# ==============================================================================
+# Kubernetes vLLM Responder Deployment & Service Manifest
+# ==============================================================================
+# Dedicated high-accuracy inference engine for reasoning and response synthesis.
+# Serves Qwen/Qwen2.5-1.5B-Instruct without dynamic adapters.
+#
+# Memory Strategy:
+#   In the baseline static configuration, --gpu-memory-utilization is restricted
+#   to 0.38 (~4.6GB on a 12GB GPU), leaving the remainder of the VRAM for the
+#   vllm-agents node (0.22) and system buffers under NVIDIA GPU time-slicing.
+# ==============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-responder
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vllm-responder
+    app.kubernetes.io/component: inference-engine
+    app.kubernetes.io/part-of: llm-serving-platform
+    app: vllm-responder
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm-responder
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vllm-responder
+        app.kubernetes.io/component: inference-engine
+        app.kubernetes.io/part-of: llm-serving-platform
+        app: vllm-responder
+    spec:
+      containers:
+        - name: vllm-responder
+          image: vllm/vllm-openai:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - vllm
+            - serve
+            - Qwen/Qwen2.5-1.5B-Instruct
+            # Static VRAM restriction: allocates ~38% of physical VRAM for weights + KV cache
+            - --gpu-memory-utilization
+            - "0.38"
+            - --max-model-len
+            - "2048"
+            - --enforce-eager
+            - --port
+            - "8080"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # WSL2 / Container Toolkit host pin memory optimization
+            - name: VLLM_WSL2_ENABLE_PIN_MEMORY
+              value: "1"
+            # Optional Hugging Face Hub token referenced from Kubernetes Secret
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+          resources:
+            requests:
+              cpu: "2000m"
+              memory: "4Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+---
+# ==============================================================================
+# vLLM Responder Internal Service
+# ==============================================================================
+# Exposes the OpenAI-compatible vLLM API to the Gateway at http://vllm-responder:8080
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-responder
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vllm-responder
+    app.kubernetes.io/component: inference-engine
+    app.kubernetes.io/part-of: llm-serving-platform
+    app: vllm-responder
+spec:
+  type: ClusterIP
+  selector:
+    app: vllm-responder
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080

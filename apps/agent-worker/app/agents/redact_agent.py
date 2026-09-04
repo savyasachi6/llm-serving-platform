@@ -1,5 +1,6 @@
 from app.agents.base import BaseAgent
 from app.api_client import GatewayClient
+from common.config import settings
 
 
 class RedactAgent(BaseAgent):
@@ -28,7 +29,7 @@ Your sole responsibility is to redact Personally Identifiable Information (PII) 
         
         # Route to vLLM Throughput Node with Multi-LoRA Hot-Swapping
         response = await self.gateway.generate_completion(
-            model="reflection-lora",
+            model=settings.vllm_redact_lora,
             messages=[
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": ticket_text}

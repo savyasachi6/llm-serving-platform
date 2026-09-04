@@ -1,5 +1,6 @@
 from app.agents.base import BaseAgent
 from app.api_client import GatewayClient
+from common.config import settings
 
 
 class RespondAgent(BaseAgent):
@@ -31,8 +32,9 @@ Your objective is to write a polite, helpful, and concise response to a customer
         
         prompt = f"Knowledge Base Article:\n{kb_article}\n\nCustomer Ticket:\n{redacted_text}"
         
-        # Route to vLLM Node (Llama-3.2-3B-Instruct)
+        # Route to vLLM Responder Node
         response = await self.gateway.generate_completion(
+            model=settings.vllm_responder_model,
             messages=[
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": prompt}

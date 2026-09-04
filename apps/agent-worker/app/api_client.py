@@ -5,6 +5,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 import httpx
+from common.config import settings
 from contracts.openai_models import (
     ChatCompletionResponse,
     ChatCompletionResponseChoice,
@@ -20,7 +21,7 @@ class GatewayClient:
         # We read from the environment so the same code works in both K8s and local dev.
         # Fallback chain: explicit arg -> env var -> K8s DNS default.
         self.gateway_url = gateway_url or os.environ.get("GATEWAY_URL", "http://gateway:80") + "/v1"
-        self.client = httpx.AsyncClient(timeout=10.0)
+        self.client = httpx.AsyncClient(timeout=120.0)
 
     async def generate_completion(
         self, 
@@ -28,8 +29,18 @@ class GatewayClient:
         workload_type: str, 
         max_tokens: int = 512, 
         temperature: float = 0.7,
-        model: Optional[str] = "default"
+        model: Optional[str] = None
     ) -> ChatCompletionResponse:
+        if model in (None, "default"):
+            if workload_type in ("responder", "reasoning", "precision", "synthesis"):
+                model = settings.vllm_responder_model
+            elif workload_type == "triage":
+                model = settings.vllm_triage_lora
+            elif workload_type == "redactor":
+                model = settings.vllm_redact_lora
+            else:
+                model = settings.vllm_agents_model
+
         payload = {
             "model": model,
             "messages": messages,
@@ -45,7 +56,7 @@ class GatewayClient:
             )
             response.raise_for_status()
             return ChatCompletionResponse(**response.json())
-        except (httpx.ConnectError, httpx.ConnectTimeout):
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.ReadTimeout):
             # Fallback mock execution for standalone local testing when gateway is offline
             user_content = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
             

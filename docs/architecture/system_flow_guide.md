@@ -33,8 +33,8 @@ graph TD
         E --> H[Agent Worker Pods x3]
         E --> I[Playground Pod]
         H -->|http://gateway:80| F
-        F -->|http://vllm-precision:8080| G1
-        F -->|http://vllm-throughput:8080| G2
+        F -->|http://vllm-responder:8080| G1
+        F -->|http://vllm-agents:8080| G2
         I -->|http://agent-worker:8001| H
     end
 ```
@@ -53,8 +53,8 @@ This is why we **don't use `localhost`** in Kubernetes. Each pod is its own isol
 | From | To | URL Used | Defined In |
 | :--- | :--- | :--- | :--- |
 | **Agent Worker** | Gateway | `http://gateway:80` | `agent-worker-deployment.yaml` (env: `GATEWAY_URL`) |
-| **Gateway** | vLLM Precision | `http://vllm-precision:8080/v1` | `common/config.py` (env: `VLLM_PRECISION_BASE_URL`) |
-| **Gateway** | vLLM Throughput | `http://vllm-throughput:8080/v1` | `common/config.py` (env: `VLLM_THROUGHPUT_BASE_URL`) |
+| **Gateway** | vLLM Precision | `http://vllm-responder:8080/v1` | `common/config.py` (env: `VLLM_RESPONDER_BASE_URL`) |
+| **Gateway** | vLLM Throughput | `http://vllm-agents:8080/v1` | `common/config.py` (env: `VLLM_AGENTS_BASE_URL`) |
 | **Gateway** | Ollama | `http://ollama:11434` | `common/config.py` (env: `OLLAMA_BASE_URL`) |
 | **Playground UI** | Agent Worker | `http://agent-worker:8001` | Nginx config / frontend API calls |
 | **Browser (local dev)** | Playground | `http://localhost:3000` or K8s port-forward | `docker-compose.yml` / `playground-service.yaml` |
@@ -84,8 +84,8 @@ This is why we **don't use `localhost`** in Kubernetes. Each pod is its own isol
 ### The vLLM Engines (`infra/kubernetes/base/*-deployment.yaml`)
 - **What they are**: Two highly optimized C++/CUDA inference engines serving distinct roles.
 - **Where they run**: Inside Kubernetes as distinct Pods.
-- **Precision Node (`vllm-precision`)**: Holds the `Qwen/Qwen2.5-1.5B-Instruct` base model in GPU memory for complex, multi-step reasoning.
-- **Throughput Node (`vllm-throughput`)**: Holds the `Qwen/Qwen2.5-0.5B-Instruct` base model along with multiple LoRA adapters. When the Gateway routes a Triage request for `model="reasoning-lora"`, vLLM dynamically layers that adapter over the base model in milliseconds.
+- **Precision Node (`vllm-responder`)**: Holds the `Qwen/Qwen2.5-1.5B-Instruct` base model in GPU memory for complex, multi-step reasoning.
+- **Throughput Node (`vllm-agents`)**: Holds the `Qwen/Qwen2.5-0.5B-Instruct` base model along with multiple LoRA adapters. When the Gateway routes a Triage request for `model="reasoning-lora"`, vLLM dynamically layers that adapter over the base model in milliseconds.
 
 ---
 
@@ -132,10 +132,10 @@ sequenceDiagram
 2. The UI sends the ticket to the **Agent Worker** (`http://agent-worker:8001/api/process_ticket` in K8s).
 3. The **Orchestrator** splits the ticket and simultaneously dispatches to the `TriageAgent` and `RedactAgent`.
 4. Each Agent sends its system prompt + user message to the **Gateway** (`http://gateway:80/v1/chat/completions`).
-5. The Gateway applies **Admission Control** (rejects if overloaded with HTTP 503), checks the **exact-match cache**, and on a miss, routes to the **vLLM Throughput Node** (`http://vllm-throughput:8080`) based on the workload type.
+5. The Gateway applies **Admission Control** (rejects if overloaded with HTTP 503), checks the **exact-match cache**, and on a miss, routes to the **vLLM Throughput Node** (`http://vllm-agents:8080`) based on the workload type.
 6. The Throughput Node dynamically hot-swaps to the correct LoRA adapter (`reasoning-lora` or `reflection-lora`).
 7. Once Triage and Redact finish in parallel, the Orchestrator enforces a strict safety boundary (halting if PII redaction failed) and triggers the `RespondAgent`.
-8. The `RespondAgent` calls the Gateway, which routes this specific workload to the **vLLM Precision Node** (`http://vllm-precision:8080`) for high-fidelity final synthesis.
+8. The `RespondAgent` calls the Gateway, which routes this specific workload to the **vLLM Precision Node** (`http://vllm-responder:8080`) for high-fidelity final synthesis.
 
 ---
 
