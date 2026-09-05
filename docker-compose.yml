@@ -88,8 +88,9 @@ services:
   # kvcached VRAM Manager Daemon:
   # Creates a shared pool of physical VRAM pages across engines. Instead of each vLLM
   # engine statically locking its entire KV cache allocation at boot (which crashes with OOMs
-  # on consumer GPUs like RTX 3060/4070 with 12GB VRAM), kvcached dynamically allocates
-  # memory pages over an IPC Unix domain socket and immediately reclaims them when generation ends.
+  # on memory-constrained GPUs (e.g., 8 GB to 16 GB VRAM workstations or cloud instances),
+  # kvcached dynamically allocates memory pages over an IPC Unix domain socket and immediately
+  # reclaims them when generation ends.
   kvcached:
     image: ghcr.io/ovg-project/kvcached:latest
     container_name: llm-kvcached-root
@@ -141,9 +142,16 @@ services:
     ports:
       # HOST_PORT:CONTAINER_PORT - mapped to host 8082 to avoid collisions
       - "8082:8080"
+    # Why 'required: false'? In Docker Compose v2.24+, setting 'required: false'
+    # ensures 'docker compose config' and 'docker compose up' do NOT crash when
+    # .env has not yet been created (e.g. in fresh Git clones or CI/CD pipelines).
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
+      # Why VLLM_WSL2_ENABLE_PIN_MEMORY=1? WSL2 GPU passthrough does not support
+      # CUDA pinned memory without special flags. Enabling this prevents CUDA allocator
+      # runtime errors when running on Windows WSL2.
       - VLLM_WSL2_ENABLE_PIN_MEMORY=1
       # Configure dynamic memory paging through kvcached IPC:
       - ENABLE_KVCACHED=true
@@ -192,9 +200,15 @@ services:
     ports:
       # HOST_PORT:CONTAINER_PORT - mapped to host 8083 to avoid collisions
       - "8083:8080"
+    # Why 'required: false'? In Docker Compose v2.24+, setting 'required: false'
+    # ensures 'docker compose config' and 'docker compose up' do NOT crash when
+    # .env has not yet been created (e.g. in fresh Git clones or CI/CD pipelines).
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
+      # Why VLLM_WSL2_ENABLE_PIN_MEMORY=1? Enables memory pinning compatibility
+      # across Windows WSL2 GPU virtualized environments.
       - VLLM_WSL2_ENABLE_PIN_MEMORY=1
       # Route KV cache requests dynamically through kvcached:
       - ENABLE_KVCACHED=true

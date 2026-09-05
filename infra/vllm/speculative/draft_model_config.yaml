@@ -14,5 +14,5 @@ num_speculative_tokens: 5
 # This doesn't require a second model loaded into VRAM, saving memory.
 ngram_prompt_lookup_max: 4
 
-# NOTE: Speculative decoding is disabled by default in our model profiles
-# to conserve VRAM on the 12GB RTX 5070 Ti constraint.
+# NOTE: Speculative decoding is disabled by default in our baseline model profiles
+# to conserve VRAM on memory-constrained GPUs (e.g. 8GB - 16GB budgets).

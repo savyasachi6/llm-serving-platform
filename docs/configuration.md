@@ -104,7 +104,43 @@ env:
 
 ---
 
-## 5. Quick Verification
+## 5. Swapping Models & Adapters (Model-Agnostic Design)
+
+The platform is designed to be **completely model-agnostic**. The default models (`Qwen2.5-1.5B` and `Qwen2.5-0.5B`) are lightweight choices designed to easily co-locate on memory-constrained GPUs (e.g., 8 GB to 16 GB), but you can switch to any Hugging Face model or Ollama tag simply by modifying environment variables.
+
+### Example Configurations:
+
+#### A. Default Lightweight Configuration (8 GB – 12 GB GPUs)
+```dotenv
+VLLM_RESPONDER_MODEL=Qwen/Qwen2.5-1.5B-Instruct
+VLLM_AGENTS_MODEL=Qwen/Qwen2.5-0.5B-Instruct
+VLLM_TRIAGE_LORA=reasoning-lora
+VLLM_REDACT_LORA=reflection-lora
+```
+
+#### B. Meta Llama 3.2 Family (8 GB – 16 GB GPUs)
+```dotenv
+VLLM_RESPONDER_MODEL=meta-llama/Llama-3.2-3B-Instruct
+VLLM_AGENTS_MODEL=meta-llama/Llama-3.2-1B-Instruct
+HF_TOKEN=hf_your_huggingface_access_token
+```
+
+#### C. Mistral or Llama 8B Family (16 GB – 24 GB GPUs)
+```dotenv
+VLLM_RESPONDER_MODEL=meta-llama/Meta-Llama-3-8B-Instruct
+VLLM_AGENTS_MODEL=meta-llama/Llama-3.2-3B-Instruct
+```
+
+#### D. CPU-Only Fallback (No GPU required)
+```dotenv
+USE_MOCK=False
+OLLAMA_BASE_URL=http://localhost:11434
+# Run: ollama run llama3.2:1b or qwen2.5:0.5b
+```
+
+---
+
+## 6. Quick Verification
 
 To verify that environment variables are correctly loaded and active:
 

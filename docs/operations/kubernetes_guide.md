@@ -65,7 +65,7 @@ kubectl apply -f infra/kubernetes/kind/gpu-time-slicing.yaml
 kubectl patch daemonset nvidia-device-plugin-daemonset -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args", "value": ["--config-file=/etc/kubernetes/nvidia-config/any"]}]'
 ```
 
-*Note: Since the 12GB of VRAM is shared between multiple pods, the Kubernetes base manifests (`infra/kubernetes/base/`) deploy the lightweight Qwen model family: `vllm-responder` uses `Qwen/Qwen2.5-1.5B-Instruct` with `--gpu-memory-utilization 0.38` (~4.6GB), and `vllm-agents` uses `Qwen/Qwen2.5-0.5B-Instruct` with `--gpu-memory-utilization 0.22` (~2.7GB). This sums to 60% VRAM, providing a stable 40% buffer against OOM errors.*
+*Note: To safely co-locate multiple inference engines on a single physical GPU (whether 8 GB, 12 GB, 16 GB, or 24 GB+), the Kubernetes base manifests (`infra/kubernetes/base/`) configure memory partitioning to avoid Out-Of-Memory errors. By default, `vllm-responder` (using `Qwen/Qwen2.5-1.5B-Instruct` or similar) is assigned `--gpu-memory-utilization 0.38`, and `vllm-agents` (using `Qwen/Qwen2.5-0.5B-Instruct` or similar) is assigned `--gpu-memory-utilization 0.22`. This totals 60% VRAM, providing a safe 40% buffer for CUDA context, activations, and OS display overhead on any GPU.*
 
 ### 1.4 Multi-LoRA Dynamic Hot-Swapping
 To maximize cost-efficiency, the throughput node (`vllm-agents`) is configured to host multiple LoRA adapters simultaneously on top of `Qwen/Qwen2.5-0.5B-Instruct`. 

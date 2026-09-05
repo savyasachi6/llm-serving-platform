@@ -42,8 +42,9 @@ flowchart LR
 
 ### Prerequisites
 - Docker & Docker Compose
-- NVIDIA GPU (if running full vLLM engines)
-- Linux / WSL2 (for GPU support)
+- **Hardware Agnostic**: NVIDIA GPU with 8GB+ VRAM (e.g. RTX 3060/4070/4080/5070, A10G, L4, A100) **OR** any modern CPU (via Ollama CPU fallback or `USE_MOCK=True` mode)
+- **Model Agnostic**: Works out of the box with any model family (Qwen 2.5, Llama 3/3.1/3.2, Mistral, Gemma 2, Phi-3/4)
+- Linux or Windows with WSL2 (for NVIDIA Container Toolkit / GPU passthrough)
 
 ### Local Development Path
 1. Copy the environment file: `cp .env.example .env`
@@ -76,7 +77,8 @@ kubectl get pods -n llm-serving
 | **Local Setup & Docker** | [Docker Guide](docs/docker-guide.md) | Multi-stage builds, port mappings, named volumes, and bridge networks. |
 | **Kubernetes** | [Kubernetes Deployment Guide](docs/kubernetes-guide.md) | Manifests, resource budgeting, DaemonSet IPC sockets, and HPA. |
 | **Troubleshooting** | [Troubleshooting Guide](docs/troubleshooting.md) | Container exit codes, healthcheck timeouts, Pending pods, and PVCs. |
-| **Configuration** | [Configuration Guide](docs/configuration.md) | Full environment variable matrix, secrets, and CoreDNS addressing. |
+| **Configuration** | [Configuration Guide](docs/configuration.md) | Full environment variable matrix, secrets, and model swapping. |
+| **Tuning & Sizing** | [Inference & Hardware Sizing Guide](docs/inference/tuning_guide.md) | VRAM budgeting, quantization, prefix caching, and multi-GPU/CPU setups. |
 | **Security & Secrets** | [Security Threat Model](docs/security/threat_model.md) | Strict tenant cache isolation, log redaction, and prompt injection defense. |
 
 ## 🧭 Choose Your Path

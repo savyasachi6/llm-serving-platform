@@ -1,4 +1,4 @@
-# vLLM Profile for RTX 5070 Ti (12.2 GB VRAM)
+# vLLM Profile Example for 12GB - 16GB GPUs (Configurable for any GPU tier and model)
 model_name: "meta-llama/Meta-Llama-3-8B-Instruct"
 quantization: "awq"
 max_model_len: 4096

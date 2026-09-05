@@ -1,40 +1,87 @@
+# ==============================================================================
+# 🚀 Continuous Integration (CI) Pipeline
+# ==============================================================================
+# This GitHub Actions workflow automates code quality checks, automated testing,
+# and infrastructure manifest validation on every push and pull request.
+#
+# Pipeline Architecture:
+# ┌─────────────────────┐       ┌─────────────────────┐
+# │   lint-and-format   │ ───►  │     test-suite      │
+# │ (Ruff linter/fmt)   │       │ (Pytest unit/intg)  │
+# └─────────────────────┘       └─────────────────────┘
+#                                          │
+#                               ┌──────────▼──────────┐
+#                               │   validate-infra    │
+#                               │ (Compose/K8s checks)│
+#                               └─────────────────────┘
+# ==============================================================================
+
 name: CI
 
+# ------------------------------------------------------------------------------
+# 1. Triggers & Event Filters
+# ------------------------------------------------------------------------------
+# CI runs automatically whenever code is pushed or a PR is opened targeting
+# either 'main' or 'master'. This prevents regressions from merging silently.
 on:
   push:
     branches: [main, master]
   pull_request:
     branches: [main, master]
 
+# ------------------------------------------------------------------------------
+# 2. Concurrency & Resource Optimization
+# ------------------------------------------------------------------------------
+# 'cancel-in-progress: true' terminates obsolete, running workflows if a new commit
+# is pushed to the same branch before the previous run finishes.
+# Learning Tip: This saves runner minutes, reduces cloud compute costs, and
+# provides instant developer feedback on the newest code revision.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # ============================================================================
+  # Job 1: Fast Code Quality & Static Analysis (Linting & Formatting)
+  # ============================================================================
+  # Runs first to provide sub-10-second feedback on code hygiene before executing
+  # heavier test suites.
   lint-and-format:
     name: Code Quality & Linting
     runs-on: ubuntu-latest
     steps:
+      # Step 1.1: Fetch repository source code onto the GitHub runner VM
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Step 1.2: Install 'uv' (astral-sh), an ultra-fast Python package manager
+      # written in Rust. 'enable-cache: true' caches wheels and virtualenvs across runs.
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
+      # Step 1.3: Provision the exact Python runtime version required by pyproject.toml
       - name: Set up Python 3.12
         run: uv python install 3.12
 
+      # Step 1.4: Resolve and install workspace lockfile dependencies into an isolated venv
       - name: Install Dependencies
         run: uv sync
 
+      # Step 1.5: Run Ruff linter (catches syntax bugs, unused imports, bad practices)
       - name: Run Ruff Lint Check
         run: uv run ruff check .
 
+      # Step 1.6: Verify PEP 8 code formatting compliance
       - name: Run Ruff Format Check
         run: uv run ruff format --check .
 
+  # ============================================================================
+  # Job 2: Automated Unit & Integration Test Suite
+  # ============================================================================
+  # 'needs: lint-and-format' creates a staged dependency graph: tests will only
+  # execute if code passes linting, preventing wasted compute on malformed code.
   test:
     name: Test Suite (Python ${{ matrix.python-version }})
     needs: lint-and-format
@@ -42,6 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Matrix testing enables easy expansion to multiple Python versions (e.g. 3.11, 3.12)
         python-version: ["3.12"]
     steps:
       - name: Checkout Repository
@@ -58,9 +106,24 @@ jobs:
       - name: Install Dependencies
         run: uv sync
 
+      # Why this step is essential:
+      # Production applications keep secrets in .env files which are gitignored
+      # (never committed to version control for security). CI runners start with
+      # a fresh filesystem without any .env. Copying .env.example ensures test
+      # runners receive valid dummy configs without exposing real secrets.
+      - name: Prepare Environment File (.env)
+        run: cp .env.example .env
+
+      # Executes the pytest test runner (includes tests for Gateway, Agent Worker,
+      # Circuit Breakers, and Tenant Isolation).
       - name: Run Full Pytest Suite
         run: uv run pytest -v
 
+  # ============================================================================
+  # Job 3: Infrastructure, Compose & Kubernetes Manifest Validation
+  # ============================================================================
+  # Validates that Docker Compose files and Kubernetes manifests are syntactically
+  # valid and contain no broken references before reaching production.
   validate-infra:
     name: Validate Infrastructure & Manifests
     runs-on: ubuntu-latest
@@ -68,11 +131,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Populate .env so docker-compose variable interpolation succeeds
+      - name: Prepare Environment File (.env)
+        run: cp .env.example .env
+
+      # What 'docker compose config' does:
+      # Validates YAML syntax, resolves environment variables, checks volume bindings,
+      # and ensures service dependency topologies are structurally sound without
+      # needing to pull gigabytes of GPU container images.
       - name: Validate Root Docker Compose
         run: docker compose config
 
+      # Validates the multi-profile compose stack (infra/compose/docker-compose.yml)
       - name: Validate Multi-Profile Docker Compose
         run: docker compose -f infra/compose/docker-compose.yml config
 
+      # What 'kubectl kustomize' does:
+      # Compiles and evaluates declarative Kubernetes Kustomization manifests to ensure
+      # all patches, ConfigMaps, and deployments render valid Kubernetes YAML without
+      # needing a live cluster. Piping to /dev/null tests exit code for zero errors.
       - name: Validate Kubernetes Base Manifests (Kustomize)
         run: kubectl kustomize infra/kubernetes/base > /dev/null
+

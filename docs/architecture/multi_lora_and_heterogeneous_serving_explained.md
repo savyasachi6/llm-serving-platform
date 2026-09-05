@@ -7,7 +7,7 @@ This document provides an in-depth, engineering-grade walkthrough of **Multi-LoR
 ## 🎯 1. The Core Concepts: Why Multi-LoRA?
 
 ### 1.1 The Mathematical Mechanism of LoRA
-In traditional fine-tuning, every new task requires saving and serving an entire copy of the model's weights ($W \in \mathbb{R}^{d \times k}$). For a 3B parameter model, each fine-tuned variant consumes ~6 GB of VRAM. Serving 4 specialized models would require 24 GB of VRAM, exceeding a single 12 GB GPU.
+In traditional fine-tuning, every new task requires saving and serving an entire copy of the model's weights ($W \in \mathbb{R}^{d \times k}$). For a 3B parameter model, each fine-tuned variant consumes ~6 GB of VRAM. Serving 4 specialized models would require 24 GB of VRAM, exceeding entry-level consumer and cloud GPU budgets (e.g. 8 GB – 16 GB).
 
 **LoRA (Low-Rank Adaptation)** freezes the pre-trained base model weights $W_0$ and injects trainable rank-decomposition matrices $A$ and $B$:
 
@@ -116,11 +116,15 @@ graph TD
         GW -.->|workload: local| Ollama["🦙 Ollama CPU Fallback (Port 11434)"]
     end
 
-    subgraph Hardware["NVIDIA RTX 5070 (12 GB VRAM)"]
-        Prec -->|45% VRAM (~5.4 GB)| VRAM[("Shared GPU Memory Buffer")]
-        Thru -->|30% VRAM (~3.6 GB)| VRAM
+    subgraph Hardware["Physical GPU / Shared VRAM Pool (e.g., 8 GB – 24 GB)"]
+        Prec -->|Allocated VRAM (e.g. 45%)| VRAM[("Shared GPU Memory Buffer")]
+        Thru -->|Allocated VRAM (e.g. 30%)| VRAM
     end
 ```
+
+> [!NOTE]
+> **Hardware & Model Agnostic Architecture:**  
+> The dual-engine topology works across **any NVIDIA GPU** (e.g., RTX 3060/4070/4080/5070, A10G, L4, A100) or **CPU-only systems** (via Ollama/Mock). The memory split (e.g. 45% / 30%) leaves safety headroom regardless of total VRAM size. Furthermore, while Qwen 2.5 is used as the default lightweight demonstration family, **any Hugging Face or Ollama model** (Llama 3/3.1/3.2, Mistral, Gemma 2, Phi-3/4, DeepSeek) can be dropped in via `.env` or Kubernetes ConfigMaps.
 
 ---
 
