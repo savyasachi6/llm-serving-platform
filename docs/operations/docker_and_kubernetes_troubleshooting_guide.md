@@ -186,7 +186,7 @@ kubectl port-forward svc/agent-worker 8001:8001
 ### 4. Running Dual vLLM Engines with Multi-LoRA on GPU
 ```bash
 # 1. Download genuine fine-tuned LoRA checkpoints
-python scripts/download_real_loras.py
+python scripts/lora/download_loras.py
 
 # 2. Start vLLM Precision (Port 8080 - Reasoning & Synthesis)
 docker run -d --name vllm-responder \
@@ -230,5 +230,5 @@ curl.exe http://localhost:8081/v1/models
 .\.venv\Scripts\pytest -v
 
 # Run the end-to-end multi-agent pipeline
-python scripts/test_micro_agents.py
+python scripts/demo/test_micro_agents.py
 ```

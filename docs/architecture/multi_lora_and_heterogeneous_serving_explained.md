@@ -140,7 +140,7 @@ The platform uses genuine pre-trained LoRA weights from the Hugging Face Hub:
 
 To download the checkpoints directly to `lora_adapters/`:
 ```bash
-python scripts/download_real_loras.py
+python scripts/lora/download_loras.py
 ```
 
 ---

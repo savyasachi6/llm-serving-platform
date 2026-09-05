@@ -1,10 +1,13 @@
 """Generate valid local PEFT LoRA adapters for Multi-LoRA serving in vLLM.
 
 Uses only Python standard library (no external dependencies required).
+Generates compliant adapter_config.json and adapter_model.safetensors for offline
+testing or continuous integration without requiring Hugging Face downloads.
 """
 
 import json
 import os
+import pathlib
 import struct
 
 
@@ -63,7 +66,6 @@ def create_lora_adapter(adapter_dir: str, base_model: str = "Qwen/Qwen2.5-0.5B-I
     tensors = {}
     # For Qwen2.5-0.5B: 24 layers, hidden_size=896, v_proj_size=128
     for layer in range(24):
-        # q_proj lora_A (8, 896): 8 * 896 * 2 bytes = 14336 bytes
         shape_qa = [8, 896]
         bytes_qa = b"\x00" * (8 * 896 * 2)
         tensors[f"base_model.model.model.layers.{layer}.self_attn.q_proj.lora_A.weight"] = (
@@ -71,7 +73,6 @@ def create_lora_adapter(adapter_dir: str, base_model: str = "Qwen/Qwen2.5-0.5B-I
             bytes_qa,
         )
 
-        # q_proj lora_B (896, 8): 896 * 8 * 2 bytes = 14336 bytes
         shape_qb = [896, 8]
         bytes_qb = b"\x00" * (896 * 8 * 2)
         tensors[f"base_model.model.model.layers.{layer}.self_attn.q_proj.lora_B.weight"] = (
@@ -79,7 +80,6 @@ def create_lora_adapter(adapter_dir: str, base_model: str = "Qwen/Qwen2.5-0.5B-I
             bytes_qb,
         )
 
-        # v_proj lora_A (8, 896): 8 * 896 * 2 bytes = 14336 bytes
         shape_va = [8, 896]
         bytes_va = b"\x00" * (8 * 896 * 2)
         tensors[f"base_model.model.model.layers.{layer}.self_attn.v_proj.lora_A.weight"] = (
@@ -87,7 +87,6 @@ def create_lora_adapter(adapter_dir: str, base_model: str = "Qwen/Qwen2.5-0.5B-I
             bytes_va,
         )
 
-        # v_proj lora_B (128, 8): 128 * 8 * 2 bytes = 2048 bytes
         shape_vb = [128, 8]
         bytes_vb = b"\x00" * (128 * 8 * 2)
         tensors[f"base_model.model.model.layers.{layer}.self_attn.v_proj.lora_B.weight"] = (
@@ -100,11 +99,11 @@ def create_lora_adapter(adapter_dir: str, base_model: str = "Qwen/Qwen2.5-0.5B-I
 
 
 def main():
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    adapters_dir = os.path.join(root_dir, "lora_adapters")
+    root_dir = pathlib.Path(__file__).resolve().parents[2]
+    adapters_dir = root_dir / "lora_adapters"
 
-    create_lora_adapter(os.path.join(adapters_dir, "reasoning-lora"))
-    create_lora_adapter(os.path.join(adapters_dir, "reflection-lora"))
+    create_lora_adapter(str(adapters_dir / "reasoning-lora"))
+    create_lora_adapter(str(adapters_dir / "reflection-lora"))
     print(
         "[SUCCESS] Both reasoning-lora and reflection-lora adapters are ready for vLLM Multi-LoRA serving!"
     )

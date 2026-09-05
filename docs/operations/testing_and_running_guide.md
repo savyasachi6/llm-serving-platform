@@ -33,7 +33,7 @@ The platform uses a **heterogeneous multi-model + Multi-LoRA architecture**. Mod
   - Base: `Qwen/Qwen2.5-0.5B-Instruct`
   - `reasoning-lora`: `wuyanzu4692/task-13-Qwen-Qwen2.5-0.5B-Instruct` (Intent classification & triage)
   - `reflection-lora`: `Hebisuke/Qwen2.5-0.5B-Instruct_bias2_0.5B` (PII redaction & compliance)
-- **Local LoRA Checkpoint Script**: Run `python scripts/download_real_loras.py` to fetch genuine adapter checkpoints directly to `lora_adapters/`.
+- **Local LoRA Checkpoint Script**: Run `python scripts/lora/download_loras.py` to fetch genuine adapter checkpoints directly to `lora_adapters/`.
 
 ### B. Alternative Multi-Profile Stack (`infra/compose/docker-compose.yml`)
 - **vLLM Responder**: `meta-llama/Llama-3.2-3B-Instruct`

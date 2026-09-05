@@ -86,7 +86,7 @@ kubectl get pods -n llm-serving
 - **I want to deploy the project**: Read the [Kubernetes Guide](docs/kubernetes-guide.md).
 - **I want to explore the Playground UI**: Check the [Playground Guide](docs/architecture/frontend_playground_and_kubernetes_guide.md) or [apps/playground/README.md](apps/playground/README.md).
 - **I am troubleshooting an issue**: Check the [Troubleshooting Guide](docs/troubleshooting.md).
-- **I want to understand vLLM Memory Sharing**: View the [Interactive kvcached Explainer](docs/kvcached/index.html) (serve with `python scripts/build_kvcached_explainer.py --serve`).
+- **I want to understand vLLM Memory Sharing**: View the [Interactive kvcached Explainer](docs/kvcached/index.html) (serve with `python scripts/kvcached_visualizer/serve.py --serve`).
 
 ## 📂 Repository Structure Guide
 - `apps/gateway`: FastAPI ingress handling admission and caching.

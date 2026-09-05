@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>kvcached — Interactive Memory & Architecture Explainer | LLM Serving Platform</title>
+  <meta name="description" content="Interactive visual simulator and architectural breakdown of kvcached GPU memory elasticity for multi-engine, multi-LoRA LLM serving"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-diff.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+<style>
+{{CSS}}
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+<div id="pb"></div>
+<nav>
+  <div class="nb"><div class="nd"></div>kvcached Interactive Explainer</div>
+  <div class="nl">
+    <a href="#simulator">Simulator</a>
+    <a href="#problem">The Problem</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#facts">Fact Sheet</a>
+    <a href="#roadmap">What Else Can Be Done</a>
+  </div>
+</nav>
+<main>
+<section id="hero" style="border-top:none;">
+  <div class="hi">
+    <div class="hc">🎯 Interactive VRAM & Serving Simulator</div>
+    <h1>Why GPU Memory<br/>Is Being Wasted Right Now</h1>
+    <p class="hs" style="max-width:680px;margin:0 auto 40px;">An interactive visual walkthrough of static memory bottlenecks in dual-vLLM serving — and how <strong style="color:var(--kv-gold);">kvcached</strong> eliminates Out-Of-Memory (OOM) 429/503 errors via elastic, demand-paged GPU memory pooling.</p>
+    <div class="hst">
+      <div><div class="v" id="hero-total-vram">12.0 GB</div><div class="lb">Total GPU VRAM</div></div>
+      <div><div class="v" id="hero-locked-boot" style="background:linear-gradient(135deg,var(--danger),var(--warn));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">9.2 GB</div><div class="lb">Locked at boot statically</div></div>
+      <div><div class="v" id="hero-elastic-pool" style="background:linear-gradient(135deg,var(--accent3),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">~9.8 GB</div><div class="lb">Shared dynamic pool with kvcached</div></div>
+      <div><div class="v" id="hero-multiplier" style="color:var(--kv-gold);">2.4x</div><div class="lb">More KV capacity per engine</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     Section 1: Interactive Memory Simulator
+     ========================================================================= -->
+<section id="simulator">
+  <div class="c">
+    <div class="ey">Live Simulator</div>
+    <h2>Interactive VRAM & Traffic Sandbox</h2>
+    <p class="lead">Change the GPU size, model pairing, and traffic workload below to see how physical GPU memory is partitioned in real time.</p>
+
+    <div class="sim-panel">
+      <div class="sim-header">
+        <h3>🎛️ Serving Configuration & Workload Controls</h3>
+        <div class="badge" id="sim-status-badge">Simulation Active</div>
+      </div>
+
+      <div class="sim-controls-grid">
+        <!-- Control 1: GPU Presets & Slider -->
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Physical GPU VRAM</span>
+            <span class="ctrl-val" id="ctrl-vram-text">12.0 GB</span>
+          </div>
+          <div class="pills">
+            <button class="pill-btn" onclick="setGpuPreset(8)">8 GB</button>
+            <button class="pill-btn active" onclick="setGpuPreset(12)">12 GB</button>
+            <button class="pill-btn" onclick="setGpuPreset(16)">16 GB</button>
+            <button class="pill-btn" onclick="setGpuPreset(24)">24 GB</button>
+            <button class="pill-btn" onclick="setGpuPreset(48)">48 GB</button>
+            <button class="pill-btn" onclick="setGpuPreset(80)">80 GB</button>
+          </div>
+          <input type="range" class="sim-slider" id="vram-slider" min="6" max="96" step="1" value="12" oninput="onSliderChange(this.value)"/>
+        </div>
+
+        <!-- Control 2: Model Pairing Selector -->
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Model Pair Architecture</span>
+            <span class="ctrl-val" id="ctrl-model-text">Qwen 1.5B + 0.5B</span>
+          </div>
+          <select class="sim-select" id="model-select" onchange="onModelChange(this.value)">
+            <option value="qwen-default" selected>Qwen 2.5: 1.5B Precision + 0.5B Throughput (Default)</option>
+            <option value="llama-family">Llama 3.2: 3B Precision + 1B Throughput</option>
+            <option value="enterprise-8b">Enterprise: Llama-3.1 8B AWQ + Qwen 2.5 3B</option>
+          </select>
+          <div style="font-size:11px;color:var(--muted);margin-top:10px;">Weights: <span id="model-weights-desc">Responder 1.2 GB | Agents 0.5 GB | LoRAs 0.5 GB</span></div>
+        </div>
+      </div>
+
+      <!-- Traffic Phase Simulator -->
+      <div style="margin-top:8px;">
+        <div class="ctrl-label">
+          <span>Active Pipeline Traffic Phase</span>
+          <span class="ctrl-val" id="ctrl-phase-text">Phase 1: Triage Burst</span>
+        </div>
+        <div class="traffic-phase-bar">
+          <button class="traffic-btn" id="phase-idle" onclick="setTrafficPhase('idle')">⏸️ Idle (0 in-flight)</button>
+          <button class="traffic-btn active" id="phase-triage" onclick="setTrafficPhase('triage')">🏷️ Step 1: Triage Burst</button>
+          <button class="traffic-btn" id="phase-redact" onclick="setTrafficPhase('redact')">🛡️ Step 2: Redact Burst</button>
+          <button class="traffic-btn" id="phase-respond" onclick="setTrafficPhase('respond')">✍️ Step 3: Respond Burst</button>
+          <button class="traffic-btn" id="phase-both" onclick="setTrafficPhase('both')">⚡ Heavy Concurrency</button>
+          <button class="traffic-btn auto-btn" id="phase-auto" onclick="toggleAutoPlay()">▶️ Auto-Cycle Workflow</button>
+        </div>
+      </div>
+
+      <!-- Horizontal Memory Visualizer -->
+      <div class="mem-timeline">
+        <div class="mem-bar-title">
+          <span style="color:#f87171;">Static Partitioning (Without kvcached)</span>
+          <span id="static-bar-summary" style="font-family:var(--font-mono);color:var(--muted);">9.2 GB Locked | 2.8 GB Free Buffer</span>
+        </div>
+        <div class="mem-bar-track" id="static-mem-bar">
+          <!-- Filled dynamically by script.js -->
+        </div>
+
+        <div class="mem-bar-title" style="margin-top:14px;">
+          <span style="color:#34d399;">Elastic Dynamic Pooling (With kvcached)</span>
+          <span id="elastic-bar-summary" style="font-family:var(--font-mono);color:var(--muted);">2.2 GB Fixed Weights | 9.8 GB Shared Elastic Pool</span>
+        </div>
+        <div class="mem-bar-track" id="elastic-mem-bar">
+          <!-- Filled dynamically by script.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="g2 rg" id="problem">
+      <!-- Without kvcached -->
+      <div class="cc">
+        <div class="cch">
+          <div class="sd" style="background:var(--danger);box-shadow:0 0 8px var(--danger);"></div>
+          <div>
+            <h3>Without kvcached</h3>
+            <span id="chart-b-subtitle">Static allocation — 12.0 GB total</span>
+          </div>
+        </div>
+        <div class="cw2">
+          <canvas id="cB" width="210" height="210" style="max-width:210px;max-height:210px;"></canvas>
+          <div class="cl">
+            <div class="big" id="center-b-val" style="color:var(--danger);">9.2 GB</div>
+            <div class="sm" id="center-b-lbl">locked at boot</div>
+          </div>
+        </div>
+        <div class="leg">
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Responder weights</div><div class="gb" id="leg-b-rw">1.2 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#818cf8;"></div>Responder KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" id="leg-b-rkv" style="color:var(--danger);">5.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Agents weights</div><div class="gb" id="leg-b-aw">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#34d399;"></div>Agents KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" id="leg-b-akv" style="color:var(--danger);">3.7 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#374151;"></div>LoRA adapters</div><div class="gb" id="leg-b-lora">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#1f2937;"></div>Unusable / Idle gap</div><div class="gb" id="leg-b-gap">0.6 GB</div></div>
+        </div>
+        <div class="cal cdx" id="dynamic-alert-b">
+          <div class="ic">⚠️</div>
+          <div id="dynamic-alert-b-text"><strong>Root cause of 429/503s:</strong> When Triage bursts, <code>vllm-agents</code> is capped at 3.7 GB while 5.5 GB sits 100% idle on <code>vllm-responder</code>. You OOM despite 45% of GPU memory remaining completely untouched!</div>
+        </div>
+      </div>
+
+      <!-- With kvcached -->
+      <div class="cc">
+        <div class="cch">
+          <div class="sd" style="background:var(--accent3);box-shadow:0 0 8px var(--accent3);"></div>
+          <div>
+            <h3>With kvcached</h3>
+            <span id="chart-a-subtitle">Elastic allocation — shared dynamic pool</span>
+          </div>
+        </div>
+        <div class="cw2">
+          <canvas id="cA" width="210" height="210" style="max-width:210px;max-height:210px;"></canvas>
+          <div class="cl">
+            <div class="big" id="center-a-val" style="color:var(--accent3);">~9.8 GB</div>
+            <div class="sm" id="center-a-lbl">available dynamic pool</div>
+          </div>
+        </div>
+        <div class="leg">
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Responder weights (static)</div><div class="gb" id="leg-a-rw">1.2 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(129,140,248,.45);"></div>Responder KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" id="leg-a-rkv" style="color:var(--accent3);">0 → 9.8 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Agents weights (static)</div><div class="gb" id="leg-a-aw">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(52,211,153,.45);"></div>Agents KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" id="leg-a-akv" style="color:var(--accent3);">0 → 9.8 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#374151;"></div>LoRA adapters</div><div class="gb" id="leg-a-lora">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#f59e0b;"></div>Shared dynamic pool</div><div class="gb" id="leg-a-pool" style="color:var(--kv-gold);">9.8 GB</div></div>
+        </div>
+        <div class="cal csx" id="dynamic-alert-a">
+          <div class="ic">✅</div>
+          <div id="dynamic-alert-a-text"><strong>Dynamic Lending:</strong> Both engines borrow from the unified 9.8 GB pool. Triage expands to full capacity without artificial ceilings, then returns pages immediately when Step 1 finishes.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     Section 2: Pipeline State
+     ========================================================================= -->
+<section id="pipeline">
+  <div class="c">
+    <div class="ey">Section 2 — The Micro-Agent Pipeline</div>
+    <h2>Memory State at Each Agent Step</h2>
+    <p class="lead">Your <code>agent-worker</code> runs <strong>Triage → Redact → Respond</strong> sequentially. Switch tabs to see how memory behaves at each step.</p>
+    <div class="card rv">
+      <div class="tb">
+        <button class="tbt active" id="tbb" onclick="switchTab('b')">❌ Without kvcached (Hard Partitioned)</button>
+        <button class="tbt" id="tba" onclick="switchTab('a')">✅ With kvcached (Demand Paged)</button>
+      </div>
+      <div id="tab-b" class="tp active">
+        <div class="pf">
+          <div class="ps pt"><div class="nu">1</div><h4>Triage</h4><p>→ <strong>vllm-agents</strong> + <em>reasoning-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">Capped at static limit<br/><small>Responder VRAM is 100% IDLE</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps prx"><div class="nu">2</div><h4>Redact</h4><p>→ <strong>vllm-agents</strong> + <em>reflection-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">2 LoRAs share tight slice<br/><small>⚠️ OOM & 429 rejection risk</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> for synthesis</p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">Static ceiling reached<br/><small>Agents VRAM is now 100% IDLE</small></div></div>
+        </div>
+        <div class="cal cdx" style="margin-top:20px;"><div class="ic">🚨</div><div><strong>Why your AdmissionService fires early:</strong> vLLM returns 429 when its static block pool exhausts — not when the GPU runs out of compute. Your Gateway semaphore escalates this into client-facing HTTP 503s.</div></div>
+      </div>
+      <div id="tab-a" class="tp">
+        <div class="pf">
+          <div class="ps pt"><div class="nu">1</div><h4>Triage</h4><p>→ <strong>vllm-agents</strong> + <em>reasoning-lora</em></p><div class="mt">Borrows up to 90% of shared pool<br/><small>Pages unmapped on completion</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps prx"><div class="nu">2</div><h4>Redact</h4><p>→ <strong>vllm-agents</strong> + <em>reflection-lora</em></p><div class="mt">Both LoRAs burst dynamically<br/><small>✅ Zero block fragmentation</small></div></div>
+          <div class="pa">→</div>
+          <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> claims freed pool</p><div class="mt">Expands to large context synthesis<br/><small>High token concurrency</small></div></div>
+        </div>
+        <div class="cal csx" style="margin-top:20px;"><div class="ic">🎯</div><div><strong>Result:</strong> AdmissionService only sheds load when actual physical GPU compute saturates. You can safely increase <code>GLOBAL_AGENT_CONCURRENCY</code> by 2x–3x.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     Section 3: Fact Sheet & Architectural Deep-Dive
+     ========================================================================= -->
+<section id="facts">
+  <div class="c">
+    <div class="ey">Section 3 — Verified Facts</div>
+    <h2>Fact Sheet: What Is Really Happening Under the Hood</h2>
+    <p class="lead">Engineers often have misconceptions about GPU memory allocation. Here are the precise technical facts verified against our vLLM and CUDA benchmarks.</p>
+
+    <div class="fact-grid">
+      <div class="fact-card">
+        <span class="fc-badge" style="background:rgba(248,113,113,.15);color:var(--danger);">Fact #1 · The 429/503 Bug</span>
+        <h4>Continuous Batching Traps Memory</h4>
+        <p>By default, vLLM's <code>BlockManager</code> pre-allocates an array of KV page slots at boot using <code>--gpu-memory-utilization</code>. In multi-engine serving, Engine A cannot borrow empty blocks from Engine B. When Engine A receives a traffic burst, it rejects requests with HTTP 429 even if Engine B is completely idle with 6 GB of unused VRAM.</p>
+        <ul>
+          <li>Engine A hits artificial block starvation.</li>
+          <li>Gateway Admission semaphore queue saturates.</li>
+          <li>Client experiences 503 Service Unavailable.</li>
+        </ul>
+      </div>
+
+      <div class="fact-card">
+        <span class="fc-badge" style="background:rgba(79,156,249,.15);color:var(--accent);">Fact #2 · Zero-Copy IPC</span>
+        <h4>How kvcached Actually Pushes Pages</h4>
+        <p><code>kvcached</code> does not copy tensor bytes across containers. It uses the NVIDIA CUDA Virtual Memory Management (VMM) driver API (<code>cuMemAddressReserve</code>, <code>cuMemCreate</code>, <code>cuMemMap</code>) and a Unix Domain Socket (<code>/tmp/kvcached-ipc/kvcached.sock</code>).</p>
+        <ul>
+          <li>vLLM reserves a large virtual address space at boot.</li>
+          <li>Physical memory handles are created by the daemon.</li>
+          <li>Handles are mapped into containers via IPC in &lt;0.05ms.</li>
+        </ul>
+      </div>
+
+      <div class="fact-card">
+        <span class="fc-badge" style="background:rgba(52,211,153,.15);color:var(--accent3);">Fact #3 · Compute Invariant</span>
+        <h4>What kvcached Touches vs Leaves Untouched</h4>
+        <p><code>kvcached</code> manages <strong>only</strong> KV cache page allocation. It does not touch model weight tensors, does not slow down matrix multiplication, and does not alter FlashAttention or Triton Punica LoRA kernels.</p>
+        <ul>
+          <li><strong>Zero loss of accuracy:</strong> Exact FP16/BF16 KV caches.</li>
+          <li><strong>Zero inference latency penalty:</strong> Paging overhead is masked during prefill.</li>
+          <li><strong>Transparent to applications:</strong> Standard OpenAI API interface.</li>
+        </ul>
+      </div>
+
+      <div class="fact-card">
+        <span class="fc-badge" style="background:rgba(245,158,11,.15);color:var(--kv-gold);">Fact #4 · Hardware Math</span>
+        <h4>The Mathematical Formula for Memory Savings</h4>
+        <p>In a standard dual-engine setup, the stranded memory ratio $S$ is defined by the duty-cycle divergence between micro-agents:</p>
+        <p style="font-family:var(--font-mono);font-size:12px;background:rgba(0,0,0,.3);padding:8px;border-radius:6px;margin:8px 0;">
+          Stranded_VRAM = VRAM_Total × (util_responder × idle_responder + util_agents × idle_agents)
+        </p>
+        <p>Because agents execute asynchronously (Triage then Redact then Respond), one engine is idle 60%–75% of the time, resulting in 4–8 GB of stranded hardware capacity on a single card.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================================
+     Section 4: What Else Can Be Done (Optimization Roadmap)
+     ========================================================================= -->
+<section id="roadmap">
+  <div class="c">
+    <div class="ey">Section 4 — Advanced Engineering</div>
+    <h2>What Else Can Be Done? (Serving Optimization Roadmap)</h2>
+    <p class="lead">Dynamic memory pooling with <code>kvcached</code> solves static allocation. To push throughput and cost-efficiency even further, here are the top 5 advanced architectural techniques that can be layered on top.</p>
+
+    <div class="roadmap-grid">
+      <div class="roadmap-card">
+        <div>
+          <div class="rc-icon">⏩</div>
+          <h4>1. Dynamic Speculative Decoding</h4>
+          <p>Use a smaller draft model or an ngram prompt lookup cache to propose 3–5 tokens per forward pass, verified in parallel by the target model. Yields 2x–3x lower Time-To-First-Token (TTFT) on synthesis tasks without extra VRAM.</p>
+        </div>
+        <div class="rc-tag">Latency Reduction · 2x-3x Speedup</div>
+      </div>
+
+      <div class="roadmap-card">
+        <div>
+          <div class="rc-icon">📑</div>
+          <h4>2. Cross-Engine Prefix Cache Sharing</h4>
+          <p>In multi-agent pipelines, system prompts and schema definitions often overlap between Triage, Redact, and Respond. Persisting KV prefix blocks across engines allows 100% cache hits on prompt tokens.</p>
+        </div>
+        <div class="rc-tag">Token Savings · 40-70% TTFT Drop</div>
+      </div>
+
+      <div class="roadmap-card">
+        <div>
+          <div class="rc-icon">🧱</div>
+          <h4>3. Chunked Prefill & Decode Interleaving</h4>
+          <p>Break large document prefills into 512-token chunks and interleave them with ongoing decode steps. Prevents long input prompts from stalling active response streams, dramatically smoothing out P99 latency spikes.</p>
+        </div>
+        <div class="rc-tag">SLA Protection · Eliminates Jitter</div>
+      </div>
+
+      <div class="roadmap-card">
+        <div>
+          <div class="rc-icon">📐</div>
+          <h4>4. PagedAttention Block Sizing (16 vs 32 vs 64)</h4>
+          <p>Tuning the token block size from 16 to 32 or 64 reduces CUDA kernel launch overhead and improves memory bandwidth utilization during high-concurrency continuous batching.</p>
+        </div>
+        <div class="rc-tag">Hardware Tuning · +15% Throughput</div>
+      </div>
+
+      <div class="roadmap-card">
+        <div>
+          <div class="rc-icon">🛡️</div>
+          <h4>5. VRAM Watermark Circuit Breakers</h4>
+          <p>Rather than relying solely on concurrency semaphores in the Gateway, feed real-time VRAM watermark telemetry from <code>/tmp/kvcached-ipc</code> into the Gateway's admission controller for dynamic backpressure.</p>
+        </div>
+        <div class="rc-tag">Fault Tolerance · 0% OOM Guarantee</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+<footer>
+  <p style="margin-bottom:8px;"><strong>Cost-Efficient LLM Serving Platform</strong> — kvcached integration for dual-vLLM on Single / Multi-GPU Setups</p>
+  <p><a href="https://github.com/ovg-project/kvcached" target="_blank">kvcached GitHub</a> · <a href="../architecture/multi_lora_and_heterogeneous_serving_explained.md">Multi-LoRA Architecture Guide</a> · <a href="../inference/tuning_guide.md">Inference Tuning Guide</a></p>
+</footer>
+<script>
+{{JS}}
+</script>
+</body>
+</html>
