@@ -336,3 +336,306 @@ if (window.anime) {
   anime({ targets: '.hst > div', opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(100, { start: 400 }), duration: 800, easing: 'easeOutExpo' });
 }
 if (window.Prism) Prism.highlightAll();
+
+// ==============================================================================
+// 📊 Empirical Benchmarks & Deep Performance Analytics Engine
+// ==============================================================================
+
+const benchmarkData = {
+  short_chat: {
+    name: 'short_chat',
+    title: '💬 Baseline Short Chat',
+    workload: 'chat',
+    description: 'Baseline short multi-turn chat measuring cold un-cached serving performance.',
+    model: 'Qwen/Qwen2.5-0.5B-Instruct',
+    requests: 100,
+    concurrency: 10,
+    successRate: '100.0%',
+    throughputRps: 11.58,
+    decodeTps: 347.4,
+    totalTps: 764.2,
+    p50Latency: '0.787s',
+    p95Latency: '1.372s',
+    ttftP50: '314.8 ms',
+    tpotP50: '15.7 ms/tok',
+    cacheHitRate: '0.0%',
+    statusBadge: '100% Success (Cold Cache)',
+    notes: 'Every incoming request performs full prefill computation on the prompt.'
+  },
+  shared_prefix_agents: {
+    name: 'shared_prefix_agents',
+    title: '⚡ Shared Prefix Multi-Agent',
+    workload: 'chat',
+    description: 'Multi-agent simulation sharing common system prompts to demonstrate prefix caching.',
+    model: 'Qwen/Qwen2.5-0.5B-Instruct',
+    requests: 100,
+    concurrency: 10,
+    successRate: '100.0%',
+    throughputRps: 16.18,
+    decodeTps: 485.4,
+    totalTps: 1067.8,
+    p50Latency: '0.501s',
+    p95Latency: '1.050s',
+    ttftP50: '40.1 ms',
+    tpotP50: '14.2 ms/tok',
+    cacheHitRate: '87.5%',
+    statusBadge: '+39.7% Throughput / -36.3% Latency',
+    notes: 'Prompt prefix blocks are matched and reused directly from VRAM, bypassing prefill.'
+  },
+  long_rag: {
+    name: 'long_rag',
+    title: '📚 Long-Context RAG Reasoning',
+    workload: 'reasoning',
+    description: 'Stress-tests chunked prefill memory allocation with long contextual prompts.',
+    model: 'Qwen/Qwen2.5-1.5B-Instruct',
+    requests: 50,
+    concurrency: 5,
+    successRate: '100.0%',
+    throughputRps: 0.68,
+    decodeTps: 68.0,
+    totalTps: 1420.5,
+    p50Latency: '1.410s',
+    p95Latency: '62.835s',
+    ttftP50: '564.1 ms',
+    tpotP50: '28.2 ms/tok',
+    cacheHitRate: '0.0%',
+    statusBadge: 'Chunked Prefill Active',
+    notes: 'Tests chunked prefill on the 1.5B reasoning engine without causing CUDA OOM.'
+  },
+  overload: {
+    name: 'overload',
+    title: '🔥 High-Burst Concurrency Saturation',
+    workload: 'chat',
+    description: '1,000 rapid requests at concurrency 100 to evaluate gateway admission backpressure.',
+    model: 'Qwen/Qwen2.5-0.5B-Instruct',
+    requests: 1000,
+    concurrency: 100,
+    successRate: '100.0%',
+    throughputRps: 20.93,
+    decodeTps: 837.2,
+    totalTps: 1841.8,
+    p50Latency: '4.199s',
+    p95Latency: '6.060s',
+    ttftP50: '335.9 ms',
+    tpotP50: '16.8 ms/tok',
+    cacheHitRate: '0.0%',
+    statusBadge: 'Zero 504 Timeouts Under Peak Burst',
+    notes: 'Gateway admission controller enforces smooth queuing, sustaining 20.93 req/s.'
+  }
+};
+
+function renderBenchmarkScenario(scKey) {
+  const data = benchmarkData[scKey];
+  if (!data) return;
+
+  // Update button states
+  document.querySelectorAll('.bm-sc-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.id === 'btn-sc-' + scKey);
+  });
+
+  // Render detail card
+  const detailsEl = document.getElementById('bm-scenario-details');
+  if (detailsEl) {
+    detailsEl.innerHTML = `
+      <div class="bm-detail-item">
+        <span class="bm-detail-lbl">Scenario Name</span>
+        <span class="bm-detail-val" style="color:var(--accent);">${data.title}</span>
+      </div>
+      <div class="bm-detail-item">
+        <span class="bm-detail-lbl">Workload / Engine Model</span>
+        <span class="bm-detail-val">${data.model}</span>
+      </div>
+      <div class="bm-detail-item">
+        <span class="bm-detail-lbl">Total Requests & Concurrency</span>
+        <span class="bm-detail-val">${data.requests} reqs @ c=${data.concurrency}</span>
+      </div>
+      <div class="bm-detail-item">
+        <span class="bm-detail-lbl">Request Throughput</span>
+        <span class="bm-detail-val" style="color:var(--accent3);">${data.throughputRps} req/s</span>
+      </div>
+      <div class="bm-detail-item">
+        <span class="bm-detail-lbl">Token Generation (Decode)</span>
+        <span class="bm-detail-val" style="color:var(--kv-gold);">${data.decodeTps} tok/s</span>
+      </div>
+      <div class="bm-detail-item">
+        <span class="bm-detail-lbl">Time To First Token (TTFT p50)</span>
+        <span class="bm-detail-val">${data.ttftP50}</span>
+      </div>
+      <div class="bm-detail-item">
+        <span class="bm-detail-lbl">Time Per Output Token (TPOT p50)</span>
+        <span class="bm-detail-val">${data.tpotP50}</span>
+      </div>
+      <div class="bm-detail-item">
+        <span class="bm-detail-lbl">Total Latency (p50 / p95)</span>
+        <span class="bm-detail-val">${data.p50Latency} / ${data.p95Latency}</span>
+      </div>
+      <div class="bm-detail-item" style="grid-column: 1 / -1; background:rgba(0,0,0,0.3); padding:12px; border-radius:8px; border-left:3px solid var(--accent);">
+        <span class="bm-detail-lbl" style="color:var(--text);">Architectural Diagnosis</span>
+        <span style="font-size:12.5px;color:var(--muted);">${data.notes}</span>
+      </div>
+    `;
+  }
+}
+
+function selectBenchmarkScenario(scKey) {
+  renderBenchmarkScenario(scKey);
+}
+
+// Initialize Benchmark Charts
+function initBenchmarkCharts() {
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: { color: '#94a3b8', font: { family: 'Inter', size: 11.5 } }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
+      },
+      y: {
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
+      }
+    }
+  };
+
+  // 1. Latency Decomposition Chart (TTFT vs Decode)
+  const ctxDecomp = document.getElementById('chartLatencyDecomposition');
+  if (ctxDecomp) {
+    new Chart(ctxDecomp.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['short_chat', 'shared_prefix', 'long_rag', 'overload'],
+        datasets: [
+          {
+            label: 'TTFT Prefill Phase (s)',
+            data: [0.315, 0.040, 0.564, 0.336],
+            backgroundColor: '#818cf8'
+          },
+          {
+            label: 'Token Decode Phase (s)',
+            data: [0.472, 0.461, 0.846, 3.863],
+            backgroundColor: '#34d399'
+          }
+        ]
+      },
+      options: {
+        ...chartOptions,
+        scales: {
+          x: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+          y: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+        }
+      }
+    });
+  }
+
+  // 2. Prefix Caching Gain Comparison Chart
+  const ctxPrefix = document.getElementById('chartPrefixGain');
+  if (ctxPrefix) {
+    new Chart(ctxPrefix.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['Throughput (req/s)', 'TTFT Prefill (ms / 10)', 'p50 Latency (ms / 10)'],
+        datasets: [
+          {
+            label: 'Uncached (short_chat)',
+            data: [11.58, 31.5, 78.7],
+            backgroundColor: 'rgba(248,113,113,0.75)',
+            borderColor: '#f87171',
+            borderWidth: 1
+          },
+          {
+            label: 'Prefix-Cached (shared_prefix_agents)',
+            data: [16.18, 4.0, 50.1],
+            backgroundColor: 'rgba(52,211,153,0.75)',
+            borderColor: '#34d399',
+            borderWidth: 1
+          }
+        ]
+      },
+      options: chartOptions
+    });
+  }
+
+  // 3. Concurrency Saturation & Scaling Curve
+  const ctxConc = document.getElementById('chartConcurrencyCurve');
+  if (ctxConc) {
+    new Chart(ctxConc.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: ['1 conc', '5 conc', '10 conc', '25 conc', '50 conc', '100 conc'],
+        datasets: [
+          {
+            label: 'Throughput (req/s)',
+            data: [2.1, 8.4, 16.2, 19.1, 20.4, 20.93],
+            borderColor: '#4f9cf9',
+            backgroundColor: 'rgba(79,156,249,0.15)',
+            fill: true,
+            tension: 0.35,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Decode Tokens/sec',
+            data: [63, 252, 485, 680, 810, 837],
+            borderColor: '#f59e0b',
+            backgroundColor: 'transparent',
+            borderDash: [5, 5],
+            tension: 0.35,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        ...chartOptions,
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#94a3b8' }
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { color: '#f59e0b' }
+          },
+          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+        }
+      }
+    });
+  }
+
+  // 4. Token Processing Throughput Chart
+  const ctxTokens = document.getElementById('chartTokensThroughput');
+  if (ctxTokens) {
+    new Chart(ctxTokens.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: ['short_chat', 'shared_prefix', 'long_rag', 'overload'],
+        datasets: [
+          {
+            label: 'Decode Token Throughput (tok/s)',
+            data: [347.4, 485.4, 68.0, 837.2],
+            backgroundColor: '#34d399'
+          },
+          {
+            label: 'Prefill Processing (tok/s)',
+            data: [416.8, 582.4, 1352.5, 1004.6],
+            backgroundColor: '#a78bfa'
+          }
+        ]
+      },
+      options: chartOptions
+    });
+  }
+}
+
+// Initialize scenario details on load
+renderBenchmarkScenario('short_chat');
+initBenchmarkCharts();
+

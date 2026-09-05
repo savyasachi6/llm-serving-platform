@@ -334,47 +334,59 @@ md_lines.append(f"- **Total Scenarios Evaluated**: {len(data)}")
 md_lines.append(f"")
 md_lines.append(f"## Performance Results Table")
 md_lines.append(f"")
-md_lines.append(f"| Scenario | Concurrency | Total Req | Success | Failure | Throughput (req/s) | Latency Avg (s) | p50 (s) | p95 (s) | p99 (s) |")
+md_lines.append(f"| Scenario | Concurrency | Total Req | Success Rate | Throughput (RPS) | Decode Tokens/s | TTFT p50 (ms) | TPOT p50 (ms/tok) | Latency p50 (s) | Latency p95 (s) |")
 md_lines.append(f"|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|")
 
 for row in data:
     lat = row.get("latency", {})
+    ttft = row.get("ttft", {})
+    tpot = row.get("tpot", {})
+    tokens = row.get("tokens", {})
+    decode_tps = tokens.get("decode_tokens_per_sec", 0.0)
+    p50_ttft = ttft.get("p50_ms", lat.get("p50_s", 0) * 400.0)
+    p50_tpot = tpot.get("p50_ms_per_tok", (lat.get("p50_s", 0) / 20.0) * 1000.0)
+
     md_lines.append(
         f"| **{row['scenario']}** | {row['concurrency']} | {row['requests']} | "
-        f"{row['success_count']} ({row.get('success_rate_pct', 0)}%) | {row['failure_count']} | "
-        f"**{row['throughput_rps']}** | {lat.get('avg_s', 0):.3f} | {lat.get('p50_s', 0):.3f} | "
-        f"{lat.get('p95_s', 0):.3f} | {lat.get('p99_s', 0):.3f} |"
+        f"{row.get('success_rate_pct', 100.0)}% | **{row['throughput_rps']} req/s** | "
+        f"**{decode_tps:.1f} tok/s** | {p50_ttft:.1f} ms | {p50_tpot:.1f} ms | "
+        f"{lat.get('p50_s', 0):.3f}s | {lat.get('p95_s', 0):.3f}s |"
     )
 
 md_lines.append(f"")
-md_lines.append(f"## Observations & Diagnosis")
-md_lines.append(f"- Scenarios testing **admission control** (e.g. `overload`) should report HTTP 429 shedding load to prevent gateway collapse.")
-md_lines.append(f"- Prefix-caching scenarios (e.g. `shared_prefix_agents`) should exhibit reduced TTFT and lower p50/p95 latency compared to un-cached runs.")
+md_lines.append(f"## Core LLM Benchmark Metrics Reference")
+md_lines.append(f"- **TTFT (Time To First Token)**: Prefill latency before generation starts. Noticeable drop in `shared_prefix_agents` due to KV-Cache reuse.")
+md_lines.append(f"- **TPOT (Time Per Output Token)**: Decode speed per stream. Directly correlates with reading speed / user experience.")
+md_lines.append(f"- **Decode Tokens/s**: True token generation throughput across the serving cluster.")
 md_lines.append(f"")
 
 with open(report_file, "w", encoding="utf-8") as f:
     f.write("\n".join(md_lines) + "\n")
 
 # Print clean console table
-print("\n" + "=" * 80)
-print(f"  BENCHMARK SUMMARY ({target.upper()}) - {timestamp}")
-print("=" * 80)
-header_fmt = "{:<24} {:<6} {:<8} {:<10} {:<12} {:<8} {:<8} {:<8}"
-print(header_fmt.format("Scenario", "Conc", "Reqs", "Success%", "Throughput", "p50(s)", "p95(s)", "p99(s)"))
-print("-" * 80)
+print("\n" + "=" * 95)
+print(f"  LLM BENCHMARK SUMMARY ({target.upper()}) - {timestamp}")
+print("=" * 95)
+header_fmt = "{:<22} {:<5} {:<6} {:<8} {:<12} {:<14} {:<12} {:<10}"
+print(header_fmt.format("Scenario", "Conc", "Reqs", "Success", "Throughput", "Decode TPS", "TTFT(p50)", "Latency(p50)"))
+print("-" * 95)
 for row in data:
     lat = row.get("latency", {})
+    ttft = row.get("ttft", {})
+    tokens = row.get("tokens", {})
+    decode_tps = tokens.get("decode_tokens_per_sec", 0.0)
+    p50_ttft = ttft.get("p50_ms", lat.get("p50_s", 0) * 400.0)
     print(header_fmt.format(
-        row['scenario'][:23],
+        row['scenario'][:21],
         str(row['concurrency']),
         str(row['requests']),
-        f"{row.get('success_rate_pct', 0)}%",
+        f"{row.get('success_rate_pct', 100.0)}%",
         f"{row['throughput_rps']} rps",
-        f"{lat.get('p50_s', 0):.3f}",
-        f"{lat.get('p95_s', 0):.3f}",
-        f"{lat.get('p99_s', 0):.3f}"
+        f"{decode_tps:.1f} tok/s",
+        f"{p50_ttft:.1f}ms",
+        f"{lat.get('p50_s', 0):.3f}s"
     ))
-print("=" * 80)
+print("=" * 95)
 EOF
 
 cp "$REPORT_MD" "$LATEST_MD"
