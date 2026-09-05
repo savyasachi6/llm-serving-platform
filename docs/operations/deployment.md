@@ -16,15 +16,22 @@ Kubernetes orchestrates the exact same container images built during the Docker 
 ## Deployment Environments
 
 ### Local Development (Docker Compose)
-For local testing, benchmarking, and development workflows, Docker Compose is the recommended tool.
+For local testing, benchmarking, and development workflows, Docker Compose provides two flexible paths:
 
-```bash
-# Start the core gateway and local fallback engine (Ollama)
-docker compose --profile local up -d --build
+1. **Root Standalone Stack (Default Qwen Family + `kvcached`)**:
+   ```bash
+   # Start Gateway, Agent Worker, Redis, kvcached, and Qwen Dual-Engine
+   docker compose up -d --build
+   ```
 
-# Start the full stack including the heavy vLLM GPU engine
-docker compose --profile local --profile gpu up -d --build
-```
+2. **Multi-Profile Infrastructure Stack (`infra/compose/docker-compose.yml`)**:
+   ```bash
+   # Start lightweight CPU stack with Ollama fallback:
+   docker compose -f infra/compose/docker-compose.yml --profile local up -d --build
+
+   # Start full GPU stack with Llama-3.2 + Observability:
+   docker compose -f infra/compose/docker-compose.yml --profile local --profile gpu up -d --build
+   ```
 
 ### Production Scaling (Kubernetes)
 In production scenarios, the system is designed to scale dynamically based on traffic. The `infra/kubernetes/` directory contains the baseline manifests.

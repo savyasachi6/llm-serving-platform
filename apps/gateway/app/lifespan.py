@@ -8,27 +8,33 @@ from fastapi import FastAPI
 # Global HTTP client
 http_client: httpx.AsyncClient = None
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     setup_logging()
-    
+
     global http_client
     # Create lifespan-managed HTTP client with bounded connection pool
     limits = httpx.Limits(max_keepalive_connections=50, max_connections=100)
-    timeout = httpx.Timeout(connect=10.0, read=settings.gateway_timeout_seconds, write=10.0, pool=10.0)
+    timeout = httpx.Timeout(
+        connect=10.0, read=settings.gateway_timeout_seconds, write=10.0, pool=10.0
+    )
     http_client = httpx.AsyncClient(limits=limits, timeout=timeout)
-    
+
     yield
-    
+
     # Shutdown
     if http_client:
         await http_client.aclose()
+
 
 def get_http_client() -> httpx.AsyncClient:
     global http_client
     if http_client is None:
         limits = httpx.Limits(max_keepalive_connections=50, max_connections=100)
-        timeout = httpx.Timeout(connect=10.0, read=settings.gateway_timeout_seconds, write=10.0, pool=10.0)
+        timeout = httpx.Timeout(
+            connect=10.0, read=settings.gateway_timeout_seconds, write=10.0, pool=10.0
+        )
         http_client = httpx.AsyncClient(limits=limits, timeout=timeout)
     return http_client

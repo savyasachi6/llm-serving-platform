@@ -6,7 +6,7 @@ This guide provides a comprehensive, visual, and focused reference of the **key 
 
 ## 🏛️ System Architecture & Communication Map
 
-The platform coordinates ingress traffic, enforces admission control and tenant-isolated caching, executes a micro-agent task graph (Triage $\to$ Redaction $\to$ Response Synthesis), and routes requests to high-throughput inference engines.
+The platform coordinates ingress traffic, enforces admission control and tenant-isolated caching, executes a micro-agent task graph (Triage → Redaction → Response Synthesis), and routes requests to high-throughput inference engines.
 
 ```mermaid
 graph TD
@@ -102,6 +102,7 @@ Added a pre-validator in [`packages/common/src/common/config.py`](../../packages
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator
 from typing import Union
+
 
 class Settings(BaseSettings):
     gateway_port: int = 8000

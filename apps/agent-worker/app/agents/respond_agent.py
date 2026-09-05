@@ -25,28 +25,28 @@ Your objective is to write a polite, helpful, and concise response to a customer
     async def execute(self, task_input: dict) -> dict:
         redacted_text = task_input.get("redacted_text", "")
         classification = task_input.get("classification", "")
-        
+
         # In a real system, we would query Qdrant here based on the classification and redacted text.
         # For this assembly line, we mock the retrieval.
         kb_article = self._mock_retrieve_kb(classification)
-        
+
         prompt = f"Knowledge Base Article:\n{kb_article}\n\nCustomer Ticket:\n{redacted_text}"
-        
+
         # Route to vLLM Responder Node
         response = await self.gateway.generate_completion(
             model=settings.vllm_responder_model,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             workload_type="responder",
             max_tokens=150,
-            temperature=0.7
+            temperature=0.7,
         )
-        
+
         return {
             "classification": classification,
-            "final_reply": response.choices[0].message.content.strip()
+            "final_reply": response.choices[0].message.content.strip(),
         }
 
     def _mock_retrieve_kb(self, classification: str) -> str:

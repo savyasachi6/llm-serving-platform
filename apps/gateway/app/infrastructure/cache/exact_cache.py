@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Optional, Protocol
+from typing import Protocol
 
 # pyrefly: ignore [missing-import]
 from contracts.openai_models import ChatCompletionRequest, ChatCompletionResponse
@@ -16,6 +16,7 @@ class CachePolicy:
             return False
         return True
 
+
 class ExactCacheKeyBuilder:
     @staticmethod
     def build_key(request: ChatCompletionRequest, system_version: str = "v1") -> str:
@@ -23,25 +24,27 @@ class ExactCacheKeyBuilder:
         payload = request.model_dump(exclude_none=True)
         # Drop volatile metadata for key definition
         payload.pop("priority", None)
-        
+
         data = {
             "tenant_scope": request.tenant_scope,
             "model_id": request.model,
             "system_version": system_version,
-            "payload": payload
+            "payload": payload,
         }
-        return hashlib.sha256(json.dumps(data, sort_keys=True).encode('utf-8')).hexdigest()
+        return hashlib.sha256(json.dumps(data, sort_keys=True).encode("utf-8")).hexdigest()
+
 
 class ExactResponseCache(Protocol):
-    async def get(self, key: str) -> Optional[ChatCompletionResponse]: ...
+    async def get(self, key: str) -> ChatCompletionResponse | None: ...
     async def set(self, key: str, response: ChatCompletionResponse, ttl: int = 3600) -> None: ...
+
 
 class InMemoryExactCache(ExactResponseCache):
     def __init__(self):
         self._cache = {}
-        
-    async def get(self, key: str) -> Optional[ChatCompletionResponse]:
+
+    async def get(self, key: str) -> ChatCompletionResponse | None:
         return self._cache.get(key)
-        
+
     async def set(self, key: str, response: ChatCompletionResponse, ttl: int = 3600) -> None:
         self._cache[key] = response

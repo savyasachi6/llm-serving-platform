@@ -59,13 +59,13 @@ vLLM overcomes this with **Segmented Gather-Scatter Matrix Multiplication (SGMV)
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Req1 as Request 1 (Triage: reasoning-lora)
-    participant Req2 as Request 2 (Redact: reflection-lora)
-    participant Req3 as Request 3 (General: base model)
-    participant Batcher as Continuous Batch Scheduler
-    participant BaseMatmul as Base Model Matrix W₀
-    participant Punica as PunicaWrapperGPU (LoRA Delta Kernels)
-    participant GPU as GPU Output Buffer
+    participant Req1 as "Request 1 (Triage: reasoning-lora)"
+    participant Req2 as "Request 2 (Redact: reflection-lora)"
+    participant Req3 as "Request 3 (General: base model)"
+    participant Batcher as "Continuous Batch Scheduler"
+    participant BaseMatmul as "Base Model Matrix W0"
+    participant Punica as "PunicaWrapperGPU (LoRA Delta Kernels)"
+    participant GPU as "GPU Output Buffer"
 
     Req1->>Batcher: Enters in-flight batch
     Req2->>Batcher: Enters in-flight batch
@@ -102,7 +102,8 @@ graph TD
     subgraph AgentWorker["Agent Worker Pipeline"]
         Orchestrator -->|Step 1: Parallel| Triage["🏷️ TriageAgent<br/>(model: 'reasoning-lora'<br/>workload: 'triage')"]
         Orchestrator -->|Step 1: Parallel| Redact["🛡️ RedactAgent<br/>(model: 'reflection-lora'<br/>workload: 'redactor')"]
-        Triage & Redact -->|Step 2: Sequential| Respond["✍️ RespondAgent<br/>(workload: 'responder')"]
+        Triage -->|Step 2: Sequential| Respond["✍️ RespondAgent<br/>(workload: 'responder')"]
+        Redact -->|Step 2: Sequential| Respond
     end
 
     subgraph GatewayRouting["Gateway RoutingService"]
@@ -252,17 +253,23 @@ docker run -d --name vllm-agents \
 import httpx
 
 # Test 1: Precision Reasoning Engine (Port 8080)
-resp_precision = httpx.post("http://localhost:8080/v1/chat/completions", json={
-    "model": "Qwen/Qwen2.5-1.5B-Instruct",
-    "messages": [{"role": "user", "content": "Explain continuous batching."}]
-})
+resp_precision = httpx.post(
+    "http://localhost:8080/v1/chat/completions",
+    json={
+        "model": "Qwen/Qwen2.5-1.5B-Instruct",
+        "messages": [{"role": "user", "content": "Explain continuous batching."}],
+    },
+)
 print("Precision Output:", resp_precision.json()["choices"][0]["message"]["content"])
 
 # Test 2: Throughput Fast Action Engine (Port 8081)
-resp_throughput = httpx.post("http://localhost:8081/v1/chat/completions", json={
-    "model": "Qwen/Qwen2.5-0.5B-Instruct",
-    "messages": [{"role": "user", "content": "Classify: I was double billed."}]
-})
+resp_throughput = httpx.post(
+    "http://localhost:8081/v1/chat/completions",
+    json={
+        "model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "messages": [{"role": "user", "content": "Classify: I was double billed."}],
+    },
+)
 print("Throughput Output:", resp_throughput.json()["choices"][0]["message"]["content"])
 ```
 

@@ -6,7 +6,13 @@ Run from the project root:
     python scripts/build_kvcached_explainer.py
     python scripts/build_kvcached_explainer.py --serve
 """
-import pathlib, http.server, threading, webbrowser, os, sys
+
+import http.server
+import os
+import pathlib
+import sys
+import threading
+import webbrowser
 
 project_root = pathlib.Path(__file__).parent.parent
 explainer_dir = pathlib.Path(__file__).parent / "kvcached_explainer"
@@ -32,7 +38,8 @@ if "--serve" in sys.argv:
     Handler = http.server.SimpleHTTPRequestHandler
 
     class QuietHandler(Handler):
-        def log_message(self, fmt, *args): pass
+        def log_message(self, fmt, *args):
+            pass
 
     with http.server.HTTPServer(("127.0.0.1", PORT), QuietHandler) as httpd:
         url = f"http://127.0.0.1:{PORT}/index.html"

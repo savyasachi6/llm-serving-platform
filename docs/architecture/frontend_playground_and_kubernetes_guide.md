@@ -17,7 +17,8 @@ graph TD
     subgraph AgentPipeline["Micro-Agent Assembly Line"]
         Worker -->|Step 1: Parallel Intent & Triage| Triage["🏷️ TriageAgent (Classification)"]
         Worker -->|Step 1: Parallel PII Redaction| Redact["🛡️ RedactAgent (Masking)"]
-        Triage & Redact -->|Step 2: Sequential Synthesis| Respond["✍️ RespondAgent (Drafting)"]
+        Triage -->|Step 2: Sequential Synthesis| Respond["✍️ RespondAgent (Drafting)"]
+        Redact -->|Step 2: Sequential Synthesis| Respond
     end
     
     subgraph GatewayLayer["API Gateway (Port 8000)"]

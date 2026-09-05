@@ -54,25 +54,52 @@ graph TD
 
 ## ⚙️ 3. Engine Breakdown & Workload Matrix
 
+The platform supports two complementary model profiles: the **Primary Production Baseline** (Qwen family, configured in Kubernetes manifests and root Docker Compose for lightweight sub-12GB GPU execution) and the **Alternative Multi-Profile Stack** (`infra/compose/docker-compose.yml --profile gpu` for Llama-3.2):
+
+### Primary Production Baseline (Qwen Stack)
 | Engine | Deployment Name | Model / Quantization | Memory Utilization | Specialized Workloads |
 | :--- | :--- | :--- | :--- | :--- |
-| **vLLM Precision** | `vllm-responder` | `meta-llama/Llama-3.2-3B-Instruct` | `0.45` (45% VRAM) | `responder`, `reasoning`, `synthesis`, `precision` |
-| **vLLM Throughput** | `vllm-agents` | `meta-llama/Llama-3.2-3B-Instruct` (AWQ 4-bit) + Multi-LoRA | `0.45` (45% VRAM) | `triage`, `redactor`, `throughput`, `fast_action` |
-| **Ollama Fallback** | `ollama` | `llama3:8b` (GGUF Q4_K_M) | CPU / RAM | `local`, `cpu`, offline batch |
+| **vLLM Precision** | `vllm-responder` | `Qwen/Qwen2.5-1.5B-Instruct` (Unquantized) | `0.38` (K8s) / `0.90` (`kvcached`) | `responder`, `reasoning`, `synthesis`, `precision` |
+| **vLLM Throughput** | `vllm-agents` | `Qwen/Qwen2.5-0.5B-Instruct` + Multi-LoRA | `0.22` (K8s) / `0.90` (`kvcached`) | `triage`, `redactor`, `throughput`, `fast_action` |
+| **Ollama Fallback** | `ollama` | `qwen2.5:1.5b-instruct-q4_K_M` (or `llama3:8b`) | CPU / RAM | `local`, `cpu`, offline batch |
+
+### Alternative Multi-Profile Stack (Llama-3.2 Profile in `infra/compose/`)
+| Engine | Deployment Name | Model / Quantization | Memory Utilization | Specialized Workloads |
+| :--- | :--- | :--- | :--- | :--- |
+| **vLLM Responder** | `vllm-responder` | `meta-llama/Llama-3.2-3B-Instruct` (FP16/BF16) | `0.45` (45% VRAM) | `responder`, `reasoning`, `synthesis` |
+| **vLLM Agents** | `vllm-agents` | `meta-llama/Llama-3.2-3B-Instruct` (AWQ 4-bit) + LoRA | `0.45` (45% VRAM) | `triage`, `redactor`, `fast_action` |
 
 ---
 
 ## 🔀 4. Multi-LoRA Dynamic Hot-Swapping in vLLM
 
 ### How Multi-LoRA Works
-vLLM's Multi-LoRA architecture allows a single frozen base model to host multiple fine-tuned parameter adapters in memory simultaneously. When a request arrives with a specific adapter specified in the `model` payload, vLLM applies the low-rank delta weights on the fly without reloading base model weights:
+vLLM's Multi-LoRA architecture allows a single frozen base model to host multiple fine-tuned parameter adapters in memory simultaneously. When a request arrives with a specific adapter specified in the `model` payload, vLLM applies the low-rank delta weights on the fly without reloading base model weights.
 
+#### Primary Production Manifest (`infra/kubernetes/base/vllm-agents-deployment.yaml` & root `docker-compose.yml`):
 ```yaml
-# Inside vllm-agents deployment:
 command:
-  - python3
-  - -m
-  - vllm.entrypoints.openai.api_server
+  - vllm
+  - serve
+  - Qwen/Qwen2.5-0.5B-Instruct
+  - --gpu-memory-utilization
+  - "0.22"
+  - --max-model-len
+  - "1024"
+  - --enforce-eager
+  - --enable-lora
+  - --max-loras
+  - "4"
+  - --lora-modules
+  - reasoning-lora=wuyanzu4692/task-13-Qwen-Qwen2.5-0.5B-Instruct
+  - reflection-lora=Hebisuke/Qwen2.5-0.5B-Instruct_bias2_0.5B
+  - --port
+  - "8080"
+```
+
+#### Alternative Compose Stack (`infra/compose/docker-compose.yml`):
+```yaml
+command:
   - --model
   - meta-llama/Llama-3.2-3B-Instruct
   - --quantization
@@ -81,14 +108,16 @@ command:
   - --max-loras
   - "4"
   - --lora-modules
-  - reasoning-lora=PandurangMopgar/Llama-3.2-3B-Instruct-reasoning-lora
+  - reasoning-lora=alokabhishek/llama-3.2-3B-Instruct-lora-text2sql
   - reflection-lora=justmalhar/llama-3.2-3B-Instruct-Reflection-Beta-LoRA
+  - --port
+  - "8080"
 ```
 
 ### Request Flow:
-1. **Triage Agent** sends `model="reasoning-lora"`, `workload_type="triage"` $\to$ Gateway routes to `vllm-agents` $\to$ vLLM activates the triage adapter.
-2. **Redact Agent** sends `model="reflection-lora"`, `workload_type="redactor"` $\to$ Gateway routes to `vllm-agents` $\to$ vLLM activates the redaction adapter.
-3. **Respond Agent** sends `workload_type="responder"` $\to$ Gateway routes to `vllm-responder` $\to$ vLLM generates the final customer response with full float precision.
+1. **Triage Agent** sends `model="reasoning-lora"`, `workload_type="triage"` → Gateway routes to `vllm-agents` → vLLM activates the triage adapter.
+2. **Redact Agent** sends `model="reflection-lora"`, `workload_type="redactor"` → Gateway routes to `vllm-agents` → vLLM activates the redaction adapter.
+3. **Respond Agent** sends `workload_type="responder"` → Gateway routes to `vllm-responder` → vLLM generates the final customer response with full float precision.
 
 ---
 
@@ -142,10 +171,14 @@ In [`apps/gateway/app/application/routing_service.py`](../../apps/gateway/app/ap
 ```python
 class RoutingService:
     def __init__(self, use_mock: bool = False):
-        self.vllm_responder = MockClient() if use_mock else VllmClient(base_url=settings.vllm_responder_base_url)
-        self.vllm_agents = MockClient() if use_mock else VllmClient(base_url=settings.vllm_agents_base_url)
+        self.vllm_responder = (
+            MockClient() if use_mock else VllmClient(base_url=settings.vllm_responder_base_url)
+        )
+        self.vllm_agents = (
+            MockClient() if use_mock else VllmClient(base_url=settings.vllm_agents_base_url)
+        )
         self.ollama = MockClient() if use_mock else OllamaClient()
-        
+
     def get_backend(self, workload_type: str) -> BackendClient:
         if workload_type in ("responder", "reasoning", "precision", "synthesis"):
             return self.vllm_responder

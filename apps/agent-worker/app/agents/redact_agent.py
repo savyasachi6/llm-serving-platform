@@ -26,20 +26,20 @@ Your sole responsibility is to redact Personally Identifiable Information (PII) 
 
     async def execute(self, task_input: dict) -> dict:
         ticket_text = task_input.get("ticket_text", "")
-        
+
         # Route to vLLM Throughput Node with Multi-LoRA Hot-Swapping
         response = await self.gateway.generate_completion(
             model=settings.vllm_redact_lora,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": ticket_text}
+                {"role": "user", "content": ticket_text},
             ],
             workload_type="redactor",
             max_tokens=512,
-            temperature=0.0
+            temperature=0.0,
         )
-        
+
         return {
             "classification": task_input.get("classification"),
-            "redacted_text": response.choices[0].message.content.strip()
+            "redacted_text": response.choices[0].message.content.strip(),
         }

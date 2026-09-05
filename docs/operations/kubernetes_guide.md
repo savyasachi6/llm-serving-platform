@@ -65,12 +65,12 @@ kubectl apply -f infra/kubernetes/kind/gpu-time-slicing.yaml
 kubectl patch daemonset nvidia-device-plugin-daemonset -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args", "value": ["--config-file=/etc/kubernetes/nvidia-config/any"]}]'
 ```
 
-*Note: Since the 12GB of VRAM is now shared between multiple pods, you MUST use smaller 2-3B parameter models, and explicitly limit `gpu-memory-utilization` to ~0.45 in your vLLM deployment flags so they don't crash.*
+*Note: Since the 12GB of VRAM is shared between multiple pods, the Kubernetes base manifests (`infra/kubernetes/base/`) deploy the lightweight Qwen model family: `vllm-responder` uses `Qwen/Qwen2.5-1.5B-Instruct` with `--gpu-memory-utilization 0.38` (~4.6GB), and `vllm-agents` uses `Qwen/Qwen2.5-0.5B-Instruct` with `--gpu-memory-utilization 0.22` (~2.7GB). This sums to 60% VRAM, providing a stable 40% buffer against OOM errors.*
 
 ### 1.4 Multi-LoRA Dynamic Hot-Swapping
-To maximize cost-efficiency, the throughput node (`Llama-3.2-3B-Instruct`) is configured to host multiple LoRA adapters (fine-tunes) simultaneously. 
-By passing `--enable-lora` and `--lora-modules` in the Kubernetes deployment, vLLM downloads the adapters directly from HuggingFace at startup. 
-When the Gateway forwards a request, it specifies the desired adapter in the `model` payload (e.g. `model="reasoning-lora"`), and vLLM dynamically hot-swaps it onto the base model in milliseconds.
+To maximize cost-efficiency, the throughput node (`vllm-agents`) is configured to host multiple LoRA adapters simultaneously on top of `Qwen/Qwen2.5-0.5B-Instruct`. 
+By passing `--enable-lora` and `--lora-modules` in the Kubernetes deployment, vLLM dynamically registers the adapters (`reasoning-lora` for classification and `reflection-lora` for PII redaction). 
+When the Gateway or Agent Worker forwards a request, it specifies the desired adapter in the `model` payload (e.g. `model="reasoning-lora"`), and vLLM dynamically applies the adapter delta weights in milliseconds.
 
 ## 2. Deploying to Google Cloud Platform (GKE)
 

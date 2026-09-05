@@ -14,24 +14,24 @@ At a high level, your machine is running three interconnected layers:
 
 ```mermaid
 graph TD
-    subgraph Host Machine
-        A[Browser / Terminal] -->|HTTP Requests| B
-        A -->|kubectl / docker| C[Docker Daemon]
+    subgraph HostMachine ["Host Machine"]
+        A["Browser / Terminal"] -->|HTTP Requests| B["Application Services"]
+        A -->|kubectl / docker| C["Docker Daemon"]
     end
     
-    subgraph Docker Desktop
-        C -->|Builds| D(Gateway Image)
-        C -->|Builds| D2(Agent Worker Image)
-        C -->|Builds| D3(Playground Image)
-        C -->|Runs| E[Minikube Node Container]
+    subgraph DockerDesktop ["Docker Desktop"]
+        C -->|Builds| D["Gateway Image"]
+        C -->|Builds| D2["Agent Worker Image"]
+        C -->|Builds| D3["Playground Image"]
+        C -->|Runs| E["Minikube Node Container"]
     end
     
-    subgraph Kubernetes Cluster - Minikube
-        E --> F[Gateway Pods x3]
-        E --> G1[vLLM Precision Pod]
-        E --> G2[vLLM Throughput Pod]
-        E --> H[Agent Worker Pods x3]
-        E --> I[Playground Pod]
+    subgraph K8sCluster ["Kubernetes Cluster - Minikube"]
+        E --> F["Gateway Pods x3"]
+        E --> G1["vLLM Precision Pod"]
+        E --> G2["vLLM Throughput Pod"]
+        E --> H["Agent Worker Pods x3"]
+        E --> I["Playground Pod"]
         H -->|http://gateway:80| F
         F -->|http://vllm-responder:8080| G1
         F -->|http://vllm-agents:8080| G2

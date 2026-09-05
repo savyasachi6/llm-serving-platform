@@ -4,6 +4,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 router = APIRouter()
 
+
 @router.get("/metrics", response_class=PlainTextResponse)
 async def get_metrics():
     """Exposes Prometheus metrics."""

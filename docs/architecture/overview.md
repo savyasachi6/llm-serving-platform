@@ -34,32 +34,32 @@ The `agentic-llm-serving-platform` is designed as a high-throughput, cost-effici
 
 ```mermaid
 graph TD
-    Client[Client Browser / UI] -->|HTTP POST| Gateway(Gateway API\nFastAPI)
+    Client["Client Browser / UI"] -->|HTTP POST| Gateway["Gateway API (FastAPI)"]
     
-    subgraph Control Plane
-        Gateway -->|Cache Miss| Admission[Admission Control\nShedding]
-        Admission --> Router{Workload Router}
+    subgraph ControlPlane ["Control Plane"]
+        Gateway -->|Cache Miss| Admission["Admission Control (Shedding)"]
+        Admission --> Router{"Workload Router"}
     end
     
-    subgraph Backend Inference Engines
-        Router -->|workload: synthesis| vLLM_Prec[vLLM Precision Node\nQwen 1.5B]
-        Router -->|workload: triage/redactor| vLLM_Thru[vLLM Throughput Node\nQwen 0.5B + LoRAs]
-        Router -.->|workload: local| Ollama[Ollama Fallback CPU]
+    subgraph BackendInference ["Backend Inference Engines"]
+        Router -->|workload: synthesis| vLLM_Prec["vLLM Precision Node (Qwen 1.5B)"]
+        Router -->|workload: triage/redactor| vLLM_Thru["vLLM Throughput Node (Qwen 0.5B + LoRAs)"]
+        Router -.->|workload: local| Ollama["Ollama Fallback CPU"]
     end
     
-    subgraph Application Plane
-        Client -->|POST /api/process_ticket| AgentWorker(Agent Worker API)
-        AgentWorker --> Orchestrator[Task Orchestrator]
-        Orchestrator -->|Parallel| TriageAgent[Triage Agent]
-        Orchestrator -->|Parallel| RedactAgent[Redact Agent]
-        RedactAgent -->|Strict Dependency| RespondAgent[Respond Agent]
+    subgraph ApplicationPlane ["Application Plane"]
+        Client -->|POST /api/process_ticket| AgentWorker["Agent Worker API"]
+        AgentWorker --> Orchestrator["Task Orchestrator"]
+        Orchestrator -->|Parallel| TriageAgent["Triage Agent"]
+        Orchestrator -->|Parallel| RedactAgent["Redact Agent"]
+        RedactAgent -->|Strict Dependency| RespondAgent["Respond Agent"]
         
         TriageAgent -->|HTTP| Gateway
         RedactAgent -->|HTTP| Gateway
         RespondAgent -->|HTTP| Gateway
     end
     
-    Gateway -.->|Set/Get| Redis[(Redis Cache)]
+    Gateway -.->|Set/Get| Redis[("Redis Cache")]
 ```
 
 ## Request Flow

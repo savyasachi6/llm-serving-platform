@@ -26,25 +26,28 @@ The platform uses a **heterogeneous multi-model + Multi-LoRA architecture**. Mod
       └─────────────────────────────┘                                            │   (Single Model Multi-LoRA) │
                                                                                  └─────────────────────────────┘
 
-### A. Cloud / Production (`vLLM` in Kubernetes)
-- **Base Model**:
-  - `meta-llama/Llama-3.2-3B-Instruct` (quantized 4-bit via AWQ for high-throughput).
-- **LoRA Fine-Tune Adapters**:
-  - `reasoning-lora`: `PandurangMopgar/Llama-3.2-3B-Instruct-reasoning-lora` (for Triage/Classification).
-  - `reflection-lora`: `justmalhar/llama-3.2-3B-Instruct-Reflection-Beta-LoRA` (for PII Redaction & Verification).
-- **Where weights live**: Downloaded dynamically at container boot time directly from **Hugging Face Hub** into the container's HuggingFace cache (`~/.cache/huggingface/hub`). In production, this directory is backed by a Kubernetes **PersistentVolumeClaim (PVC)** so weights are only downloaded once per node.
-- **Authentication**: Uses the Kubernetes Secret `hf-token` (`HUGGING_FACE_HUB_TOKEN`).
+### A. Primary Production Architecture (Qwen Family in Kubernetes & Root Compose)
+- **High-Accuracy Synthesis & Reasoning Node (`vllm-responder`)**:
+  - `Qwen/Qwen2.5-1.5B-Instruct` (Unquantized, high-precision token generation).
+- **High-Throughput Multi-LoRA Node (`vllm-agents`)**:
+  - Base: `Qwen/Qwen2.5-0.5B-Instruct`
+  - `reasoning-lora`: `wuyanzu4692/task-13-Qwen-Qwen2.5-0.5B-Instruct` (Intent classification & triage)
+  - `reflection-lora`: `Hebisuke/Qwen2.5-0.5B-Instruct_bias2_0.5B` (PII redaction & compliance)
+- **Local LoRA Checkpoint Script**: Run `python scripts/download_real_loras.py` to fetch genuine adapter checkpoints directly to `lora_adapters/`.
 
-### B. Local Environment Options
+### B. Alternative Multi-Profile Stack (`infra/compose/docker-compose.yml`)
+- **vLLM Responder**: `meta-llama/Llama-3.2-3B-Instruct`
+- **vLLM Agents**: `meta-llama/Llama-3.2-3B-Instruct` (AWQ 4-bit) with text2sql and reflection LoRAs.
+
+### C. Local Development Environments
 1. **Mock Backend (Default / Fast Dev)**:
-   - Requires **no GPU and no weight downloads**.
+   - Set `USE_MOCK=True`. Requires **no GPU and no weight downloads** (0s boot time).
    - Simulates backend token streaming, latency profiles, and OpenAI-compatible completions.
 2. **Ollama Engine (Local CPU or single GPU)**:
    - Weights stored in the local Ollama volume (`~/.ollama/models` or Docker volume `ollama_data`).
-   - Run `ollama pull llama3:8b`.
-3. **Local Kubernetes (Physical GPU)**:
-   - Shares your local GPU (e.g. 16GB RTX 5070 Ti) with a single vLLM deployment mapping multiple LoRAs.
-   - Downloads quantized 4-bit models from HuggingFace to your local cache.
+   - Run `ollama pull qwen2.5:1.5b-instruct-q4_K_M` (or `llama3:8b`).
+3. **Local Workstation / Docker Desktop (GPU with `kvcached`)**:
+   - Uses `kvcached` dynamic IPC memory manager (`/tmp/kvcached-ipc/kvcached.sock`) to arbitrate VRAM across engines without OOMs.
 
 ---
 
@@ -96,13 +99,14 @@ Ideal for testing routing logic, caching, admission control, and agent orchestra
 
 2. **Start the Gateway (Mock mode enabled):**
    ```bash
-   # Run Gateway on port 8000
-   python -m uvicorn apps.gateway.app.main:app --host 0.0.0.0 --port 8000 --reload
+   # Run Gateway using uv workspace:
+   uv run uvicorn app.main:app --app-dir apps/gateway --host 0.0.0.0 --port 8000 --reload
    ```
 
 3. **Verify Gateway Health & Documentation:**
    - Swagger / OpenAPI UI: [http://localhost:8000/docs](http://localhost:8000/docs)
-   - Health Probe: [http://localhost:8000/health](http://localhost:8000/health)
+   - Health Probes: [http://localhost:8000/health](http://localhost:8000/health) and [http://localhost:8000/healthz](http://localhost:8000/healthz)
+   - Readiness Probe: [http://localhost:8000/readyz](http://localhost:8000/readyz)
 
 4. **Send a Test Chat Completion Request:**
    ```bash

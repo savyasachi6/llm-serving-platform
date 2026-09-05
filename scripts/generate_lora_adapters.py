@@ -2,6 +2,7 @@
 
 Uses only Python standard library (no external dependencies required).
 """
+
 import json
 import os
 import struct
@@ -18,7 +19,7 @@ def write_safetensors_file(file_path: str, tensors_dict: dict[str, tuple[list[in
         header[name] = {
             "dtype": "BF16",
             "shape": shape,
-            "data_offsets": [current_offset, current_offset + data_len]
+            "data_offsets": [current_offset, current_offset + data_len],
         }
         raw_buffer.extend(data_bytes)
         current_offset += data_len
@@ -32,10 +33,11 @@ def write_safetensors_file(file_path: str, tensors_dict: dict[str, tuple[list[in
         f.write(header_json)
         f.write(raw_buffer)
 
+
 def create_lora_adapter(adapter_dir: str, base_model: str = "Qwen/Qwen2.5-0.5B-Instruct"):
     """Create adapter_config.json and adapter_model.safetensors for a 24-layer Qwen model."""
     os.makedirs(adapter_dir, exist_ok=True)
-    
+
     # 1. PEFT config
     config = {
         "base_model_name_or_path": base_model,
@@ -51,12 +53,12 @@ def create_lora_adapter(adapter_dir: str, base_model: str = "Qwen/Qwen2.5-0.5B-I
         "peft_type": "LORA",
         "r": 8,
         "target_modules": ["q_proj", "v_proj"],
-        "task_type": "CAUSAL_LM"
+        "task_type": "CAUSAL_LM",
     }
-    
+
     with open(os.path.join(adapter_dir, "adapter_config.json"), "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
-        
+
     # 2. Safetensors binary tensors (Rank 8 BF16 zero weights for non-intrusive baseline activation)
     tensors = {}
     # For Qwen2.5-0.5B: 24 layers, hidden_size=896, v_proj_size=128
@@ -64,33 +66,49 @@ def create_lora_adapter(adapter_dir: str, base_model: str = "Qwen/Qwen2.5-0.5B-I
         # q_proj lora_A (8, 896): 8 * 896 * 2 bytes = 14336 bytes
         shape_qa = [8, 896]
         bytes_qa = b"\x00" * (8 * 896 * 2)
-        tensors[f"base_model.model.model.layers.{layer}.self_attn.q_proj.lora_A.weight"] = (shape_qa, bytes_qa)
-        
+        tensors[f"base_model.model.model.layers.{layer}.self_attn.q_proj.lora_A.weight"] = (
+            shape_qa,
+            bytes_qa,
+        )
+
         # q_proj lora_B (896, 8): 896 * 8 * 2 bytes = 14336 bytes
         shape_qb = [896, 8]
         bytes_qb = b"\x00" * (896 * 8 * 2)
-        tensors[f"base_model.model.model.layers.{layer}.self_attn.q_proj.lora_B.weight"] = (shape_qb, bytes_qb)
-        
+        tensors[f"base_model.model.model.layers.{layer}.self_attn.q_proj.lora_B.weight"] = (
+            shape_qb,
+            bytes_qb,
+        )
+
         # v_proj lora_A (8, 896): 8 * 896 * 2 bytes = 14336 bytes
         shape_va = [8, 896]
         bytes_va = b"\x00" * (8 * 896 * 2)
-        tensors[f"base_model.model.model.layers.{layer}.self_attn.v_proj.lora_A.weight"] = (shape_va, bytes_va)
-        
+        tensors[f"base_model.model.model.layers.{layer}.self_attn.v_proj.lora_A.weight"] = (
+            shape_va,
+            bytes_va,
+        )
+
         # v_proj lora_B (128, 8): 128 * 8 * 2 bytes = 2048 bytes
         shape_vb = [128, 8]
         bytes_vb = b"\x00" * (128 * 8 * 2)
-        tensors[f"base_model.model.model.layers.{layer}.self_attn.v_proj.lora_B.weight"] = (shape_vb, bytes_vb)
-        
+        tensors[f"base_model.model.model.layers.{layer}.self_attn.v_proj.lora_B.weight"] = (
+            shape_vb,
+            bytes_vb,
+        )
+
     write_safetensors_file(os.path.join(adapter_dir, "adapter_model.safetensors"), tensors)
     print(f"[OK] Generated PEFT LoRA adapter: {os.path.basename(adapter_dir)}")
+
 
 def main():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     adapters_dir = os.path.join(root_dir, "lora_adapters")
-    
+
     create_lora_adapter(os.path.join(adapters_dir, "reasoning-lora"))
     create_lora_adapter(os.path.join(adapters_dir, "reflection-lora"))
-    print("[SUCCESS] Both reasoning-lora and reflection-lora adapters are ready for vLLM Multi-LoRA serving!")
+    print(
+        "[SUCCESS] Both reasoning-lora and reflection-lora adapters are ready for vLLM Multi-LoRA serving!"
+    )
+
 
 if __name__ == "__main__":
     main()

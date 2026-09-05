@@ -6,15 +6,30 @@ import time
 import httpx
 
 # Automatically add the packages directory to PYTHONPATH so it can find common.config
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "packages", "common", "src"))
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "packages", "contracts", "src"))
+sys.path.append(
+    os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "packages",
+        "common",
+        "src",
+    )
+)
+sys.path.append(
+    os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "packages",
+        "contracts",
+        "src",
+    )
+)
 
 from common.config import settings
 
 
 async def run_scenario(scenario_path: str):
     import yaml
-    with open(scenario_path, "r") as f:
+
+    with open(scenario_path) as f:
         scenario = yaml.safe_load(f)
 
     concurrency = scenario.get("concurrency", 1)
@@ -46,7 +61,7 @@ async def run_scenario(scenario_path: str):
         total_time = time.time() - start_total
 
     successes = [r for r in results if r["status"] == 200]
-    failures  = [r for r in results if r["status"] != 200]
+    failures = [r for r in results if r["status"] != 200]
 
     durations = sorted(r["duration"] for r in successes)
     n = len(durations)
@@ -61,7 +76,7 @@ async def run_scenario(scenario_path: str):
     p50 = percentile(durations, 50)
     p95 = percentile(durations, 95)
     p99 = percentile(durations, 99)
-    rps  = num_requests / total_time
+    rps = num_requests / total_time
 
     sep = "-" * 50
     print(sep)
@@ -80,6 +95,7 @@ async def run_scenario(scenario_path: str):
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--scenario", required=True)
     args = parser.parse_args()

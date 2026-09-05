@@ -5,37 +5,40 @@ from contracts.openai_models import ChatCompletionRequest, ChatCompletionRespons
 from fastapi import HTTPException, status
 
 
-from typing import Optional
-
-
 class VllmClient(BackendClient):
-    def __init__(self, base_url: str, default_model: Optional[str] = None):
+    def __init__(self, base_url: str, default_model: str | None = None):
         self.base_url = base_url
         self.default_model = default_model
-        
+
     async def chat_completion(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         client = get_http_client()
-        payload = request.model_dump(exclude_none=True, exclude={"workload_type", "priority", "cache_key", "tenant_scope"})
+        payload = request.model_dump(
+            exclude_none=True, exclude={"workload_type", "priority", "cache_key", "tenant_scope"}
+        )
         if payload.get("model") in (None, "", "default") and self.default_model:
             payload["model"] = self.default_model
 
         try:
             # We enforce standard openai contract mapped to vLLM's implementation
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                json=payload
-            )
+            response = await client.post(f"{self.base_url}/chat/completions", json=payload)
             response.raise_for_status()
             return ChatCompletionResponse(**response.json())
         except httpx.TimeoutException:
             raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="vLLM timeout")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 429:
-                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="vLLM overloaded")
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"vLLM error: {e.response.text}")
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="vLLM overloaded"
+                )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY, detail=f"vLLM error: {e.response.text}"
+            )
         except httpx.RequestError as e:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"vLLM backend unavailable: {str(e)}")
-            
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"vLLM backend unavailable: {str(e)}",
+            )
+
     async def is_healthy(self) -> bool:
         client = get_http_client()
         try:

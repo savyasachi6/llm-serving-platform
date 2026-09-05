@@ -8,33 +8,33 @@ The application is deployed to a Kubernetes cluster using standard manifests.
 
 ```mermaid
 flowchart TB
-    Client((Client)) --> Ingress[Ingress/LoadBalancer]
-    Ingress --> SvcGW[Service: gateway]
-    Ingress --> SvcAW[Service: agent-worker]
+    Client(("Client")) --> Ingress["Ingress / LoadBalancer"]
+    Ingress --> SvcGW["Service: gateway"]
+    Ingress --> SvcAW["Service: agent-worker"]
     
-    subgraph Kubernetes Cluster
-        SvcGW --> PodGW(Pod: gateway)
-        SvcAW --> PodAW(Pod: agent-worker)
+    subgraph K8sCluster ["Kubernetes Cluster"]
+        SvcGW --> PodGW["Pod: gateway"]
+        SvcAW --> PodAW["Pod: agent-worker"]
         
-        SvcRedis[Service: redis] --> PodRedis(Pod: redis)
+        SvcRedis["Service: redis"] --> PodRedis["Pod: redis"]
         PodGW --> SvcRedis
         PodAW --> SvcRedis
         
-        SvcVllmR[Service: vllm-responder] --> PodVllmR(Pod: vllm-responder)
-        SvcVllmA[Service: vllm-agents] --> PodVllmA(Pod: vllm-agents)
+        SvcVllmR["Service: vllm-responder"] --> PodVllmR["Pod: vllm-responder"]
+        SvcVllmA["Service: vllm-agents"] --> PodVllmA["Pod: vllm-agents"]
         
         PodGW --> SvcVllmR
         PodGW --> SvcVllmA
         PodAW --> SvcVllmR
         PodAW --> SvcVllmA
         
-        subgraph GPU Node
+        subgraph GPUNode ["GPU Node"]
             PodVllmR
             PodVllmA
-            DaemonKVC(DaemonSet: kvcached)
+            DaemonKVC["DaemonSet: kvcached"]
             
-            DaemonKVC <-.->|/tmp/kvcached-ipc/kvcached.sock| PodVllmR
-            DaemonKVC <-.->|/tmp/kvcached-ipc/kvcached.sock| PodVllmA
+            DaemonKVC -.->|IPC Socket| PodVllmR
+            DaemonKVC -.->|IPC Socket| PodVllmA
         end
     end
 ```
@@ -103,4 +103,4 @@ kubectl rollout history deployment/gateway -n llm-serving
 ## Next Steps
 
 - Consult the [Troubleshooting Guide](troubleshooting.md) if you encounter issues.
-- Read the [Architecture Document](architecture.md) for a higher-level system overview.
+- Read the [Architecture Overview](architecture/overview.md) for a higher-level system overview.

@@ -5,6 +5,7 @@ Demonstrates:
   2. Redaction Agent (PII Masking with LoRA)
   3. Respond Agent (Gemma-2B Synthesis)
 """
+
 import asyncio
 import os
 import sys
@@ -24,25 +25,26 @@ async def main():
     print("==================================================")
     print("[*] Micro-Agent Assembly Line - Pipeline Test")
     print("==================================================")
-    
+
     sample_ticket = (
         "Hi, my name is Jane Doe (SSN: 000-12-3456, email: jane.doe@example.com). "
         "I was charged $120.00 twice on invoice #98765 on my credit card 4532-1234-5678-9012. "
         "Please issue a refund immediately!"
     )
-    
+
     print(f"\n[Incoming Customer Ticket]:\n{sample_ticket}\n")
     print("Running Assembly Line (Triage + Redact in parallel -> Response synthesis)...")
-    
+
     orchestrator = Orchestrator()
     result = await orchestrator.process_ticket(sample_ticket)
-    
+
     print("\n--- Pipeline Execution Results ---")
     print(f"[1] Classification (Triage Agent) : {result['classification']}")
     print(f"[2] Redacted Ticket (Redact Agent): {result['redacted_ticket']}")
     print(f"[3] Final Reply (Respond Agent)   : {result['final_reply']}")
     print("\n==================================================")
     print("[SUCCESS] Pipeline completed successfully!")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
