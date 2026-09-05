@@ -11,25 +11,53 @@ const state = {
   autoTimer: null,
   models: {
     'qwen-default': {
-      name: 'Qwen 1.5B + 0.5B',
+      name: 'Qwen 2.5 1.5B + 0.5B',
       rw: 1.2,
       aw: 0.5,
       lora: 0.5,
-      desc: 'Responder 1.2 GB | Agents 0.5 GB | LoRAs 0.5 GB'
+      desc: 'Responder 1.2 GB | Agents 0.5 GB | LoRAs 0.5 GB (Ideal for 8–12GB GPUs)'
     },
     'llama-family': {
       name: 'Llama 3.2 3B + 1B',
       rw: 2.4,
       aw: 0.9,
       lora: 0.5,
-      desc: 'Responder 2.4 GB | Agents 0.9 GB | LoRAs 0.5 GB'
+      desc: 'Responder 2.4 GB | Agents 0.9 GB | LoRAs 0.5 GB (Ideal for 12–16GB GPUs)'
+    },
+    'deepseek-r1': {
+      name: 'DeepSeek-R1 Distill 7B + Qwen 0.5B',
+      rw: 4.8,
+      aw: 0.5,
+      lora: 0.5,
+      desc: 'Responder 4.8 GB (FP8/AWQ) | Agents 0.5 GB | LoRAs 0.5 GB (Reasoning Heavy)'
+    },
+    'mistral-stack': {
+      name: 'Mistral 7B + Ministral 3B',
+      rw: 4.5,
+      aw: 2.1,
+      lora: 0.8,
+      desc: 'Responder 4.5 GB (AWQ) | Agents 2.1 GB | LoRAs 0.8 GB (Enterprise Multilingual)'
+    },
+    'gemma2-stack': {
+      name: 'Gemma 2 9B AWQ + 2B',
+      rw: 5.6,
+      aw: 1.6,
+      lora: 0.6,
+      desc: 'Responder 5.6 GB (AWQ) | Agents 1.6 GB | LoRAs 0.6 GB (Google High-Precision)'
+    },
+    'phi-enterprise': {
+      name: 'Phi-4 14B AWQ + Phi-3.5 3.8B',
+      rw: 8.2,
+      aw: 2.4,
+      lora: 0.6,
+      desc: 'Responder 8.2 GB (AWQ) | Agents 2.4 GB | LoRAs 0.6 GB (High Density 24GB+)'
     },
     'enterprise-8b': {
       name: 'Llama-3.1 8B AWQ + Qwen 3B',
       rw: 4.6,
       aw: 2.2,
-      lora: 0.5,
-      desc: 'Responder 4.6 GB | Agents 2.2 GB | LoRAs 0.5 GB'
+      lora: 0.6,
+      desc: 'Responder 4.6 GB (AWQ) | Agents 2.2 GB | LoRAs 0.6 GB (Enterprise Multi-LoRA)'
     }
   }
 };
@@ -120,40 +148,41 @@ function updateSimulation() {
 
   // Static Partitioning math (Without kvcached)
   // vLLM splits static allocation: Responder gets ~45% VRAM, Agents gets ~30% VRAM
-  const staticResponderKV = Math.max(0.5, Number((vram * 0.44).toFixed(1)));
-  const staticAgentsKV = Math.max(0.4, Number((vram * 0.30).toFixed(1)));
-  const staticLockedTotal = Number((fixedWeights + staticResponderKV + staticAgentsKV).toFixed(1));
-  const staticGap = Math.max(0.1, Number((vram - staticLockedTotal).toFixed(1)));
+  const rawStaticRKV = Number((vram * 0.44).toFixed(1));
+  const rawStaticAKV = Number((vram * 0.30).toFixed(1));
+  const staticLockedTotal = Number((fixedWeights + rawStaticRKV + rawStaticAKV).toFixed(1));
+  const staticGap = Math.max(0, Number((vram - staticLockedTotal).toFixed(1)));
 
   // Dynamic Partitioning math (With kvcached)
-  const sharedPool = Math.max(1.0, Number((vram - fixedWeights - cudaOverhead).toFixed(1)));
+  const sharedPool = Math.max(0.4, Number((vram - fixedWeights - cudaOverhead).toFixed(1)));
   let dynamicResponderKV = 0.2;
   let dynamicAgentsKV = 0.2;
 
   if (state.phase === 'idle') {
-    dynamicResponderKV = 0.2;
-    dynamicAgentsKV = 0.2;
+    dynamicResponderKV = Math.min(0.2, Number((sharedPool * 0.1).toFixed(1)));
+    dynamicAgentsKV = Math.min(0.2, Number((sharedPool * 0.1).toFixed(1)));
   } else if (state.phase === 'triage') {
     dynamicAgentsKV = Number((sharedPool * 0.75).toFixed(1));
-    dynamicResponderKV = 0.2;
+    dynamicResponderKV = Number((sharedPool * 0.1).toFixed(1));
   } else if (state.phase === 'redact') {
     dynamicAgentsKV = Number((sharedPool * 0.85).toFixed(1));
-    dynamicResponderKV = 0.2;
+    dynamicResponderKV = Number((sharedPool * 0.1).toFixed(1));
   } else if (state.phase === 'respond') {
     dynamicResponderKV = Number((sharedPool * 0.85).toFixed(1));
-    dynamicAgentsKV = 0.2;
+    dynamicAgentsKV = Number((sharedPool * 0.1).toFixed(1));
   } else if (state.phase === 'both') {
     dynamicResponderKV = Number((sharedPool * 0.48).toFixed(1));
     dynamicAgentsKV = Number((sharedPool * 0.48).toFixed(1));
   }
 
   const freeDynamicPool = Math.max(0, Number((sharedPool - dynamicResponderKV - dynamicAgentsKV).toFixed(1)));
+  const isVramTight = fixedWeights + 1.2 >= vram;
 
   // Update Hero elements
   document.getElementById('hero-total-vram').innerText = `${vram.toFixed(1)} GB`;
   document.getElementById('hero-locked-boot').innerText = `${staticLockedTotal.toFixed(1)} GB`;
   document.getElementById('hero-elastic-pool').innerText = `~${sharedPool.toFixed(1)} GB`;
-  const multiplier = (sharedPool / staticAgentsKV).toFixed(1);
+  const multiplier = rawStaticAKV > 0 ? (sharedPool / rawStaticAKV).toFixed(1) : '3.2';
   document.getElementById('hero-multiplier').innerText = `${multiplier}x`;
 
   // Update Controls UI
@@ -164,14 +193,14 @@ function updateSimulation() {
   // Update Chart B (Without kvcached)
   document.getElementById('chart-b-subtitle').innerText = `Static allocation — ${vram.toFixed(1)} GB total`;
   document.getElementById('center-b-val').innerText = `${staticLockedTotal.toFixed(1)} GB`;
-  chartB.data.datasets[0].data = [m.rw, staticResponderKV, m.aw, staticAgentsKV, m.lora, staticGap];
+  chartB.data.datasets[0].data = [m.rw, rawStaticRKV, m.aw, rawStaticAKV, m.lora, staticGap];
   chartB.update();
 
   // Update Chart B Legends
   document.getElementById('leg-b-rw').innerText = `${m.rw.toFixed(1)} GB`;
-  document.getElementById('leg-b-rkv').innerText = `${staticResponderKV.toFixed(1)} GB`;
+  document.getElementById('leg-b-rkv').innerText = `${rawStaticRKV.toFixed(1)} GB`;
   document.getElementById('leg-b-aw').innerText = `${m.aw.toFixed(1)} GB`;
-  document.getElementById('leg-b-akv').innerText = `${staticAgentsKV.toFixed(1)} GB`;
+  document.getElementById('leg-b-akv').innerText = `${rawStaticAKV.toFixed(1)} GB`;
   document.getElementById('leg-b-lora').innerText = `${m.lora.toFixed(1)} GB`;
   document.getElementById('leg-b-gap').innerText = `${staticGap.toFixed(1)} GB`;
 
@@ -193,14 +222,17 @@ function updateSimulation() {
   const alertBText = document.getElementById('dynamic-alert-b-text');
   const alertAText = document.getElementById('dynamic-alert-a-text');
 
-  if (state.phase === 'triage' || state.phase === 'redact') {
-    alertBText.innerHTML = `<strong>Root cause of 429/503s:</strong> During ${state.phase.toUpperCase()}, <code>vllm-agents</code> is restricted to a tight static ceiling of ${staticAgentsKV.toFixed(1)} GB while ${staticResponderKV.toFixed(1)} GB sits 100% idle and wasted on <code>vllm-responder</code>. Requests get dropped before GPU compute is even 30% utilized!`;
+  if (isVramTight) {
+    alertBText.innerHTML = `<strong>🚨 High Boot OOM Risk:</strong> Fixed weights of <strong>${m.name}</strong> (${fixedWeights.toFixed(1)} GB) consume over 80% of ${vram} GB VRAM! Rigid static partitions immediately fail to initialize. Switch to a 16GB, 24GB, or 40GB GPU preset.`;
+    alertAText.innerHTML = `<strong>Elastic Survival:</strong> With kvcached, only weights (${fixedWeights.toFixed(1)} GB) are anchored. The remaining ${sharedPool.toFixed(1)} GB is shared elastically page-by-page, allowing execution even under constrained headroom.`;
+  } else if (state.phase === 'triage' || state.phase === 'redact') {
+    alertBText.innerHTML = `<strong>Root cause of 429/503s:</strong> During ${state.phase.toUpperCase()}, <code>vllm-agents</code> is restricted to a tight static ceiling of ${rawStaticAKV.toFixed(1)} GB while ${rawStaticRKV.toFixed(1)} GB sits 100% idle and wasted on <code>vllm-responder</code>. Requests get dropped before GPU compute is even 30% utilized!`;
     alertAText.innerHTML = `<strong>Elastic Dynamic Lending:</strong> <code>vllm-agents</code> borrows up to ${dynamicAgentsKV.toFixed(1)} GB directly from the shared pool. It handles the burst with zero OOMs, and physical memory pages are returned immediately upon request completion.`;
   } else if (state.phase === 'respond') {
-    alertBText.innerHTML = `<strong>Synthesis Starvation:</strong> <code>vllm-responder</code> generates long-context replies but is restricted to ${staticResponderKV.toFixed(1)} GB while ${staticAgentsKV.toFixed(1)} GB sits idle on <code>vllm-agents</code>. High concurrency causes sudden 504 timeouts.`;
+    alertBText.innerHTML = `<strong>Synthesis Starvation:</strong> <code>vllm-responder</code> generates long-context replies but is restricted to ${rawStaticRKV.toFixed(1)} GB while ${rawStaticAKV.toFixed(1)} GB sits idle on <code>vllm-agents</code>. High concurrency causes sudden 504 timeouts.`;
     alertAText.innerHTML = `<strong>Full Bandwidth Synthesis:</strong> Responder expands dynamically to ${dynamicResponderKV.toFixed(1)} GB of KV memory, enabling large context windows and high concurrency with zero wasted partitions.`;
   } else if (state.phase === 'both') {
-    alertBText.innerHTML = `<strong>Contention & Thrashing:</strong> Both engines struggle within their rigid partitions (${staticAgentsKV.toFixed(1)} GB and ${staticResponderKV.toFixed(1)} GB). Traffic spikes cause immediate circuit breaker tripping.`;
+    alertBText.innerHTML = `<strong>Contention & Thrashing:</strong> Both engines struggle within their rigid partitions (${rawStaticAKV.toFixed(1)} GB and ${rawStaticRKV.toFixed(1)} GB). Traffic spikes cause immediate circuit breaker tripping.`;
     alertAText.innerHTML = `<strong>Proportional Fair Sharing:</strong> kvcached arbitrates physical pages elastically between both engines (${dynamicResponderKV.toFixed(1)} GB and ${dynamicAgentsKV.toFixed(1)} GB) based on live token generation demands.`;
   } else {
     alertBText.innerHTML = `<strong>Cold Standby Waste:</strong> At zero load, ${staticLockedTotal.toFixed(1)} GB of physical VRAM is pre-locked and unavailable to any other process on your system.`;
@@ -208,7 +240,7 @@ function updateSimulation() {
   }
 
   // Update Horizontal Memory Bar
-  renderMemoryBars(vram, m, staticResponderKV, staticAgentsKV, staticGap, dynamicResponderKV, dynamicAgentsKV, freeDynamicPool, sharedPool);
+  renderMemoryBars(vram, m, rawStaticRKV, rawStaticAKV, staticGap, dynamicResponderKV, dynamicAgentsKV, freeDynamicPool, sharedPool);
 }
 
 // Render the segmented horizontal memory bars

@@ -85,9 +85,13 @@
             <span class="ctrl-val" id="ctrl-model-text">Qwen 1.5B + 0.5B</span>
           </div>
           <select class="sim-select" id="model-select" onchange="onModelChange(this.value)">
-            <option value="qwen-default" selected>Qwen 2.5: 1.5B Precision + 0.5B Throughput (Default)</option>
-            <option value="llama-family">Llama 3.2: 3B Precision + 1B Throughput</option>
-            <option value="enterprise-8b">Enterprise: Llama-3.1 8B AWQ + Qwen 2.5 3B</option>
+            <option value="qwen-default" selected>Qwen 2.5: 1.5B Precision + 0.5B Agents (Default — 8–12GB GPUs)</option>
+            <option value="llama-family">Llama 3.2: 3B Precision + 1B Agents (Meta Compact — 12–16GB GPUs)</option>
+            <option value="deepseek-r1">DeepSeek-R1 Distill: 7B Reasoning + Qwen 0.5B Agents (16–24GB GPUs)</option>
+            <option value="mistral-stack">Mistral: 7B Instruct AWQ + Ministral 3B Agents (Enterprise Multilingual)</option>
+            <option value="gemma2-stack">Gemma 2: 9B Instruct AWQ + 2B Agents (Google High-Precision)</option>
+            <option value="phi-enterprise">Phi-4: 14B AWQ + Phi-3.5 3.8B Agents (Microsoft High-Density)</option>
+            <option value="enterprise-8b">Enterprise: Llama-3.1 8B AWQ + Qwen 2.5 3B Agents</option>
           </select>
           <div style="font-size:11px;color:var(--muted);margin-top:10px;">Weights: <span id="model-weights-desc">Responder 1.2 GB | Agents 0.5 GB | LoRAs 0.5 GB</span></div>
         </div>
@@ -226,6 +230,128 @@
           <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> claims freed pool</p><div class="mt">Expands to large context synthesis<br/><small>High token concurrency</small></div></div>
         </div>
         <div class="cal csx" style="margin-top:20px;"><div class="ic">🎯</div><div><strong>Result:</strong> AdmissionService only sheds load when actual physical GPU compute saturates. You can safely increase <code>GLOBAL_AGENT_CONCURRENCY</code> by 2x–3x.</div></div>
+      </div>
+    </div>
+
+    <!-- Agent Mission Dossier: What Do These Names Mean? -->
+    <div style="margin-top:48px;" class="rv">
+      <div class="ey">Agent Deep Dive</div>
+      <h3 style="font-size:22px;font-weight:800;margin-bottom:10px;color:#fff;">What Do "Triage", "Redact", and "Respond" Actually Mean?</h3>
+      <p style="color:var(--muted);font-size:14px;max-width:760px;line-height:1.7;margin-bottom:24px;">
+        In our production architecture, instead of running one giant, slow, expensive model for everything, we decompose workflows into three specialized micro-agents. Here is what each agent does, why it is named that way, and how it executes:
+      </p>
+
+      <div class="agent-dossier-grid">
+        <!-- Agent 1: Triage -->
+        <div class="agent-card ac-triage">
+          <div class="agent-card-header">
+            <div class="agent-title-group">
+              <h3>🏷️ Agent 1: Triage</h3>
+              <span class="agent-role-badge">Intent &amp; Routing Sentry</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--throughput);font-weight:700;">Step 1</span>
+          </div>
+
+          <div class="agent-def-box">
+            <strong>What does "Triage" mean?</strong> Borrowed from emergency medicine, <em>triage</em> is the rapid evaluation of incoming cases to determine urgency, category, and routing path before expending valuable specialist resources.
+          </div>
+
+          <div class="agent-tech-pill">
+            <span>Runtime Engine</span>
+            <span class="tech-tag">vllm-agents + reasoning-lora</span>
+          </div>
+
+          <div class="agent-io-preview">
+            <div class="agent-io-step">
+              <span class="agent-io-label">Incoming User Prompt:</span>
+              <div class="agent-io-content">"Production postgres database on port 5432 is rejecting pool connections with error 1045! Fix it now!"</div>
+            </div>
+            <div class="agent-io-step">
+              <span class="agent-io-label">Triage Agent Output (JSON in &lt;20ms):</span>
+              <div class="agent-io-content">{"category": "database_incident", "urgency": "critical", "tools_needed": ["db_logs", "connection_pool"], "route": "sysadmin"}</div>
+            </div>
+          </div>
+
+          <ul class="agent-perks-list">
+            <li><strong>Sub-second TTFT:</strong> Runs on a lightweight 0.5B base model yielding ~180 tokens/sec.</li>
+            <li><strong>Zero FLOP Waste:</strong> Avoids burning 14B+ model compute just to parse user intent.</li>
+            <li><strong>Memory Profile:</strong> Requires only ~0.5 GB VRAM; releases KV memory immediately.</li>
+          </ul>
+        </div>
+
+        <!-- Agent 2: Redact -->
+        <div class="agent-card ac-redact">
+          <div class="agent-card-header">
+            <div class="agent-title-group">
+              <h3>🛡️ Agent 2: Redact</h3>
+              <span class="agent-role-badge">Privacy &amp; PII Sanitizer</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--warn);font-weight:700;">Step 2</span>
+          </div>
+
+          <div class="agent-def-box">
+            <strong>What does "Redact" mean?</strong> To <em>redact</em> means to censor, obscure, or strip confidential or sensitive information (PII, credentials, API keys) from text before it is permanently stored, logged, or shared.
+          </div>
+
+          <div class="agent-tech-pill">
+            <span>Runtime Engine</span>
+            <span class="tech-tag">vllm-agents + reflection-lora</span>
+          </div>
+
+          <div class="agent-io-preview">
+            <div class="agent-io-step">
+              <span class="agent-io-label">Raw Prompt (With Secrets):</span>
+              <div class="agent-io-content">"Verify user alex@fintech.io with SSN 012-34-5678 and token sk-live_9481ad829fba"</div>
+            </div>
+            <div class="agent-io-step">
+              <span class="agent-io-label">Redacted Output (Safe for Downstream):</span>
+              <div class="agent-io-content">"Verify user <mark class="sanitized">[REDACTED_EMAIL]</mark> with SSN <mark class="sanitized">[REDACTED_SSN]</mark> and token <mark class="sanitized">[REDACTED_SECRET]</mark>"</div>
+            </div>
+          </div>
+
+          <ul class="agent-perks-list">
+            <li><strong>Compliance First:</strong> Enforces GDPR, HIPAA, and SOC2 confidentiality automatically.</li>
+            <li><strong>Zero Leaks:</strong> Sanitized tokens prevent accidental leakage into prompt-cache tables or cloud telemetry.</li>
+            <li><strong>Multi-LoRA Agility:</strong> Hot-swaps on the same <code>vllm-agents</code> container without rebooting or loading a new base model.</li>
+          </ul>
+        </div>
+
+        <!-- Agent 3: Respond -->
+        <div class="agent-card ac-respond">
+          <div class="agent-card-header">
+            <div class="agent-title-group">
+              <h3>✍️ Agent 3: Respond</h3>
+              <span class="agent-role-badge">Deep Synthesis &amp; Reasoning</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--precision);font-weight:700;">Step 3</span>
+          </div>
+
+          <div class="agent-def-box">
+            <strong>What does "Respond" mean?</strong> The primary synthesis engine that generates the final, authoritative, high-precision answer, code solution, or explanation for the end user.
+          </div>
+
+          <div class="agent-tech-pill">
+            <span>Runtime Engine</span>
+            <span class="tech-tag">vllm-responder (High-Precision Base)</span>
+          </div>
+
+          <div class="agent-io-preview">
+            <div class="agent-io-step">
+              <span class="agent-io-label">Ingested Context:</span>
+              <div class="agent-io-content">Sanitized prompt + Triage metadata (critical) + Diagnostic outputs</div>
+            </div>
+            <div class="agent-io-step">
+              <span class="agent-io-label">Synthesized Output (High Context):</span>
+              <div class="agent-io-content">Root Cause: Max connection threshold reached in pg_hba.conf. Executed pool eviction script &amp; increased max_connections to 200.</div>
+            </div>
+          </div>
+
+          <ul class="agent-perks-list">
+            <li><strong>Deep CoT Reasoning:</strong> Uses unquantized or high-precision weights for rich textual quality.</li>
+            <li><strong>Large Context Windows:</strong> Expands up to 8k–32k tokens when working with large logs.</li>
+            <li><strong>Dynamic Pool Borrowing:</strong> Absorbs the physical VRAM pages released by Triage and Redact to avoid 429/504 errors.</li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>

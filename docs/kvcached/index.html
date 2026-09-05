@@ -140,6 +140,42 @@ footer{border-top:1px solid var(--border);padding:48px 28px;text-align:center;co
 .roadmap-card p{font-size:12px;color:var(--muted);line-height:1.6;}
 .roadmap-card .rc-tag{margin-top:14px;align-self:flex-start;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:700;background:rgba(255,255,255,.05);color:var(--accent);}
 
+/* Agent Dossier & Blueprint Cards */
+.agent-dossier-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:22px;margin-top:32px;}
+.agent-card{background:var(--surface2);border:1px solid var(--border);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden;transition:all .3s ease;}
+.agent-card:hover{transform:translateY(-3px);border-color:rgba(79,156,249,.4);box-shadow:0 12px 36px rgba(0,0,0,.45);}
+.agent-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;}
+.agent-card.ac-triage::before{background:linear-gradient(90deg,var(--throughput),#10b981);}
+.agent-card.ac-redact::before{background:linear-gradient(90deg,var(--warn),#f59e0b);}
+.agent-card.ac-respond::before{background:linear-gradient(90deg,var(--precision),var(--accent2));}
+
+.agent-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.agent-title-group h3{font-size:17px;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;}
+.agent-role-badge{font-size:10.5px;padding:3px 10px;border-radius:99px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;display:inline-block;margin-top:4px;}
+.ac-triage .agent-role-badge{background:rgba(52,211,153,.15);color:var(--throughput);border:1px solid rgba(52,211,153,.3);}
+.ac-redact .agent-role-badge{background:rgba(251,191,36,.15);color:var(--warn);border:1px solid rgba(251,191,36,.3);}
+.ac-respond .agent-role-badge{background:rgba(129,140,248,.15);color:var(--precision);border:1px solid rgba(129,140,248,.3);}
+
+.agent-def-box{background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.06);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.6;color:var(--muted);}
+.agent-def-box strong{color:var(--text);}
+.ac-triage .agent-def-box{border-left-color:var(--throughput);}
+.ac-redact .agent-def-box{border-left-color:var(--warn);}
+.ac-respond .agent-def-box{border-left-color:var(--precision);}
+
+.agent-tech-pill{font-family:var(--font-mono);font-size:11.5px;padding:6px 12px;border-radius:8px;background:var(--surface3);border:1px solid var(--border);color:var(--text);display:flex;justify-content:space-between;align-items:center;}
+.agent-tech-pill span.tech-tag{color:var(--kv-gold);font-weight:700;}
+
+.agent-io-preview{background:#040913;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;font-size:11.5px;font-family:var(--font-mono);display:flex;flex-direction:column;gap:8px;}
+.agent-io-step{display:flex;flex-direction:column;gap:3px;}
+.agent-io-label{font-size:10px;text-transform:uppercase;font-weight:800;letter-spacing:.05em;color:var(--muted);}
+.agent-io-content{background:rgba(255,255,255,.03);padding:6px 8px;border-radius:6px;word-break:break-all;color:#e2e8f0;line-height:1.5;}
+.agent-io-content mark.sanitized{background:rgba(248,113,113,.2);color:#fca5a5;padding:1px 4px;border-radius:3px;font-weight:700;}
+
+.agent-perks-list{list-style:none;display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:var(--text);}
+.agent-perks-list li{display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.agent-perks-list li::before{content:'✓';color:var(--accent3);font-weight:900;}
+
+
 </style>
 </head>
 <body>
@@ -210,9 +246,13 @@ footer{border-top:1px solid var(--border);padding:48px 28px;text-align:center;co
             <span class="ctrl-val" id="ctrl-model-text">Qwen 1.5B + 0.5B</span>
           </div>
           <select class="sim-select" id="model-select" onchange="onModelChange(this.value)">
-            <option value="qwen-default" selected>Qwen 2.5: 1.5B Precision + 0.5B Throughput (Default)</option>
-            <option value="llama-family">Llama 3.2: 3B Precision + 1B Throughput</option>
-            <option value="enterprise-8b">Enterprise: Llama-3.1 8B AWQ + Qwen 2.5 3B</option>
+            <option value="qwen-default" selected>Qwen 2.5: 1.5B Precision + 0.5B Agents (Default — 8–12GB GPUs)</option>
+            <option value="llama-family">Llama 3.2: 3B Precision + 1B Agents (Meta Compact — 12–16GB GPUs)</option>
+            <option value="deepseek-r1">DeepSeek-R1 Distill: 7B Reasoning + Qwen 0.5B Agents (16–24GB GPUs)</option>
+            <option value="mistral-stack">Mistral: 7B Instruct AWQ + Ministral 3B Agents (Enterprise Multilingual)</option>
+            <option value="gemma2-stack">Gemma 2: 9B Instruct AWQ + 2B Agents (Google High-Precision)</option>
+            <option value="phi-enterprise">Phi-4: 14B AWQ + Phi-3.5 3.8B Agents (Microsoft High-Density)</option>
+            <option value="enterprise-8b">Enterprise: Llama-3.1 8B AWQ + Qwen 2.5 3B Agents</option>
           </select>
           <div style="font-size:11px;color:var(--muted);margin-top:10px;">Weights: <span id="model-weights-desc">Responder 1.2 GB | Agents 0.5 GB | LoRAs 0.5 GB</span></div>
         </div>
@@ -353,6 +393,128 @@ footer{border-top:1px solid var(--border);padding:48px 28px;text-align:center;co
         <div class="cal csx" style="margin-top:20px;"><div class="ic">🎯</div><div><strong>Result:</strong> AdmissionService only sheds load when actual physical GPU compute saturates. You can safely increase <code>GLOBAL_AGENT_CONCURRENCY</code> by 2x–3x.</div></div>
       </div>
     </div>
+
+    <!-- Agent Mission Dossier: What Do These Names Mean? -->
+    <div style="margin-top:48px;" class="rv">
+      <div class="ey">Agent Deep Dive</div>
+      <h3 style="font-size:22px;font-weight:800;margin-bottom:10px;color:#fff;">What Do "Triage", "Redact", and "Respond" Actually Mean?</h3>
+      <p style="color:var(--muted);font-size:14px;max-width:760px;line-height:1.7;margin-bottom:24px;">
+        In our production architecture, instead of running one giant, slow, expensive model for everything, we decompose workflows into three specialized micro-agents. Here is what each agent does, why it is named that way, and how it executes:
+      </p>
+
+      <div class="agent-dossier-grid">
+        <!-- Agent 1: Triage -->
+        <div class="agent-card ac-triage">
+          <div class="agent-card-header">
+            <div class="agent-title-group">
+              <h3>🏷️ Agent 1: Triage</h3>
+              <span class="agent-role-badge">Intent &amp; Routing Sentry</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--throughput);font-weight:700;">Step 1</span>
+          </div>
+
+          <div class="agent-def-box">
+            <strong>What does "Triage" mean?</strong> Borrowed from emergency medicine, <em>triage</em> is the rapid evaluation of incoming cases to determine urgency, category, and routing path before expending valuable specialist resources.
+          </div>
+
+          <div class="agent-tech-pill">
+            <span>Runtime Engine</span>
+            <span class="tech-tag">vllm-agents + reasoning-lora</span>
+          </div>
+
+          <div class="agent-io-preview">
+            <div class="agent-io-step">
+              <span class="agent-io-label">Incoming User Prompt:</span>
+              <div class="agent-io-content">"Production postgres database on port 5432 is rejecting pool connections with error 1045! Fix it now!"</div>
+            </div>
+            <div class="agent-io-step">
+              <span class="agent-io-label">Triage Agent Output (JSON in &lt;20ms):</span>
+              <div class="agent-io-content">{"category": "database_incident", "urgency": "critical", "tools_needed": ["db_logs", "connection_pool"], "route": "sysadmin"}</div>
+            </div>
+          </div>
+
+          <ul class="agent-perks-list">
+            <li><strong>Sub-second TTFT:</strong> Runs on a lightweight 0.5B base model yielding ~180 tokens/sec.</li>
+            <li><strong>Zero FLOP Waste:</strong> Avoids burning 14B+ model compute just to parse user intent.</li>
+            <li><strong>Memory Profile:</strong> Requires only ~0.5 GB VRAM; releases KV memory immediately.</li>
+          </ul>
+        </div>
+
+        <!-- Agent 2: Redact -->
+        <div class="agent-card ac-redact">
+          <div class="agent-card-header">
+            <div class="agent-title-group">
+              <h3>🛡️ Agent 2: Redact</h3>
+              <span class="agent-role-badge">Privacy &amp; PII Sanitizer</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--warn);font-weight:700;">Step 2</span>
+          </div>
+
+          <div class="agent-def-box">
+            <strong>What does "Redact" mean?</strong> To <em>redact</em> means to censor, obscure, or strip confidential or sensitive information (PII, credentials, API keys) from text before it is permanently stored, logged, or shared.
+          </div>
+
+          <div class="agent-tech-pill">
+            <span>Runtime Engine</span>
+            <span class="tech-tag">vllm-agents + reflection-lora</span>
+          </div>
+
+          <div class="agent-io-preview">
+            <div class="agent-io-step">
+              <span class="agent-io-label">Raw Prompt (With Secrets):</span>
+              <div class="agent-io-content">"Verify user alex@fintech.io with SSN 012-34-5678 and token sk-live_9481ad829fba"</div>
+            </div>
+            <div class="agent-io-step">
+              <span class="agent-io-label">Redacted Output (Safe for Downstream):</span>
+              <div class="agent-io-content">"Verify user <mark class="sanitized">[REDACTED_EMAIL]</mark> with SSN <mark class="sanitized">[REDACTED_SSN]</mark> and token <mark class="sanitized">[REDACTED_SECRET]</mark>"</div>
+            </div>
+          </div>
+
+          <ul class="agent-perks-list">
+            <li><strong>Compliance First:</strong> Enforces GDPR, HIPAA, and SOC2 confidentiality automatically.</li>
+            <li><strong>Zero Leaks:</strong> Sanitized tokens prevent accidental leakage into prompt-cache tables or cloud telemetry.</li>
+            <li><strong>Multi-LoRA Agility:</strong> Hot-swaps on the same <code>vllm-agents</code> container without rebooting or loading a new base model.</li>
+          </ul>
+        </div>
+
+        <!-- Agent 3: Respond -->
+        <div class="agent-card ac-respond">
+          <div class="agent-card-header">
+            <div class="agent-title-group">
+              <h3>✍️ Agent 3: Respond</h3>
+              <span class="agent-role-badge">Deep Synthesis &amp; Reasoning</span>
+            </div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--precision);font-weight:700;">Step 3</span>
+          </div>
+
+          <div class="agent-def-box">
+            <strong>What does "Respond" mean?</strong> The primary synthesis engine that generates the final, authoritative, high-precision answer, code solution, or explanation for the end user.
+          </div>
+
+          <div class="agent-tech-pill">
+            <span>Runtime Engine</span>
+            <span class="tech-tag">vllm-responder (High-Precision Base)</span>
+          </div>
+
+          <div class="agent-io-preview">
+            <div class="agent-io-step">
+              <span class="agent-io-label">Ingested Context:</span>
+              <div class="agent-io-content">Sanitized prompt + Triage metadata (critical) + Diagnostic outputs</div>
+            </div>
+            <div class="agent-io-step">
+              <span class="agent-io-label">Synthesized Output (High Context):</span>
+              <div class="agent-io-content">Root Cause: Max connection threshold reached in pg_hba.conf. Executed pool eviction script &amp; increased max_connections to 200.</div>
+            </div>
+          </div>
+
+          <ul class="agent-perks-list">
+            <li><strong>Deep CoT Reasoning:</strong> Uses unquantized or high-precision weights for rich textual quality.</li>
+            <li><strong>Large Context Windows:</strong> Expands up to 8k–32k tokens when working with large logs.</li>
+            <li><strong>Dynamic Pool Borrowing:</strong> Absorbs the physical VRAM pages released by Triage and Redact to avoid 429/504 errors.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -489,25 +651,53 @@ const state = {
   autoTimer: null,
   models: {
     'qwen-default': {
-      name: 'Qwen 1.5B + 0.5B',
+      name: 'Qwen 2.5 1.5B + 0.5B',
       rw: 1.2,
       aw: 0.5,
       lora: 0.5,
-      desc: 'Responder 1.2 GB | Agents 0.5 GB | LoRAs 0.5 GB'
+      desc: 'Responder 1.2 GB | Agents 0.5 GB | LoRAs 0.5 GB (Ideal for 8–12GB GPUs)'
     },
     'llama-family': {
       name: 'Llama 3.2 3B + 1B',
       rw: 2.4,
       aw: 0.9,
       lora: 0.5,
-      desc: 'Responder 2.4 GB | Agents 0.9 GB | LoRAs 0.5 GB'
+      desc: 'Responder 2.4 GB | Agents 0.9 GB | LoRAs 0.5 GB (Ideal for 12–16GB GPUs)'
+    },
+    'deepseek-r1': {
+      name: 'DeepSeek-R1 Distill 7B + Qwen 0.5B',
+      rw: 4.8,
+      aw: 0.5,
+      lora: 0.5,
+      desc: 'Responder 4.8 GB (FP8/AWQ) | Agents 0.5 GB | LoRAs 0.5 GB (Reasoning Heavy)'
+    },
+    'mistral-stack': {
+      name: 'Mistral 7B + Ministral 3B',
+      rw: 4.5,
+      aw: 2.1,
+      lora: 0.8,
+      desc: 'Responder 4.5 GB (AWQ) | Agents 2.1 GB | LoRAs 0.8 GB (Enterprise Multilingual)'
+    },
+    'gemma2-stack': {
+      name: 'Gemma 2 9B AWQ + 2B',
+      rw: 5.6,
+      aw: 1.6,
+      lora: 0.6,
+      desc: 'Responder 5.6 GB (AWQ) | Agents 1.6 GB | LoRAs 0.6 GB (Google High-Precision)'
+    },
+    'phi-enterprise': {
+      name: 'Phi-4 14B AWQ + Phi-3.5 3.8B',
+      rw: 8.2,
+      aw: 2.4,
+      lora: 0.6,
+      desc: 'Responder 8.2 GB (AWQ) | Agents 2.4 GB | LoRAs 0.6 GB (High Density 24GB+)'
     },
     'enterprise-8b': {
       name: 'Llama-3.1 8B AWQ + Qwen 3B',
       rw: 4.6,
       aw: 2.2,
-      lora: 0.5,
-      desc: 'Responder 4.6 GB | Agents 2.2 GB | LoRAs 0.5 GB'
+      lora: 0.6,
+      desc: 'Responder 4.6 GB (AWQ) | Agents 2.2 GB | LoRAs 0.6 GB (Enterprise Multi-LoRA)'
     }
   }
 };
@@ -598,40 +788,41 @@ function updateSimulation() {
 
   // Static Partitioning math (Without kvcached)
   // vLLM splits static allocation: Responder gets ~45% VRAM, Agents gets ~30% VRAM
-  const staticResponderKV = Math.max(0.5, Number((vram * 0.44).toFixed(1)));
-  const staticAgentsKV = Math.max(0.4, Number((vram * 0.30).toFixed(1)));
-  const staticLockedTotal = Number((fixedWeights + staticResponderKV + staticAgentsKV).toFixed(1));
-  const staticGap = Math.max(0.1, Number((vram - staticLockedTotal).toFixed(1)));
+  const rawStaticRKV = Number((vram * 0.44).toFixed(1));
+  const rawStaticAKV = Number((vram * 0.30).toFixed(1));
+  const staticLockedTotal = Number((fixedWeights + rawStaticRKV + rawStaticAKV).toFixed(1));
+  const staticGap = Math.max(0, Number((vram - staticLockedTotal).toFixed(1)));
 
   // Dynamic Partitioning math (With kvcached)
-  const sharedPool = Math.max(1.0, Number((vram - fixedWeights - cudaOverhead).toFixed(1)));
+  const sharedPool = Math.max(0.4, Number((vram - fixedWeights - cudaOverhead).toFixed(1)));
   let dynamicResponderKV = 0.2;
   let dynamicAgentsKV = 0.2;
 
   if (state.phase === 'idle') {
-    dynamicResponderKV = 0.2;
-    dynamicAgentsKV = 0.2;
+    dynamicResponderKV = Math.min(0.2, Number((sharedPool * 0.1).toFixed(1)));
+    dynamicAgentsKV = Math.min(0.2, Number((sharedPool * 0.1).toFixed(1)));
   } else if (state.phase === 'triage') {
     dynamicAgentsKV = Number((sharedPool * 0.75).toFixed(1));
-    dynamicResponderKV = 0.2;
+    dynamicResponderKV = Number((sharedPool * 0.1).toFixed(1));
   } else if (state.phase === 'redact') {
     dynamicAgentsKV = Number((sharedPool * 0.85).toFixed(1));
-    dynamicResponderKV = 0.2;
+    dynamicResponderKV = Number((sharedPool * 0.1).toFixed(1));
   } else if (state.phase === 'respond') {
     dynamicResponderKV = Number((sharedPool * 0.85).toFixed(1));
-    dynamicAgentsKV = 0.2;
+    dynamicAgentsKV = Number((sharedPool * 0.1).toFixed(1));
   } else if (state.phase === 'both') {
     dynamicResponderKV = Number((sharedPool * 0.48).toFixed(1));
     dynamicAgentsKV = Number((sharedPool * 0.48).toFixed(1));
   }
 
   const freeDynamicPool = Math.max(0, Number((sharedPool - dynamicResponderKV - dynamicAgentsKV).toFixed(1)));
+  const isVramTight = fixedWeights + 1.2 >= vram;
 
   // Update Hero elements
   document.getElementById('hero-total-vram').innerText = `${vram.toFixed(1)} GB`;
   document.getElementById('hero-locked-boot').innerText = `${staticLockedTotal.toFixed(1)} GB`;
   document.getElementById('hero-elastic-pool').innerText = `~${sharedPool.toFixed(1)} GB`;
-  const multiplier = (sharedPool / staticAgentsKV).toFixed(1);
+  const multiplier = rawStaticAKV > 0 ? (sharedPool / rawStaticAKV).toFixed(1) : '3.2';
   document.getElementById('hero-multiplier').innerText = `${multiplier}x`;
 
   // Update Controls UI
@@ -642,14 +833,14 @@ function updateSimulation() {
   // Update Chart B (Without kvcached)
   document.getElementById('chart-b-subtitle').innerText = `Static allocation — ${vram.toFixed(1)} GB total`;
   document.getElementById('center-b-val').innerText = `${staticLockedTotal.toFixed(1)} GB`;
-  chartB.data.datasets[0].data = [m.rw, staticResponderKV, m.aw, staticAgentsKV, m.lora, staticGap];
+  chartB.data.datasets[0].data = [m.rw, rawStaticRKV, m.aw, rawStaticAKV, m.lora, staticGap];
   chartB.update();
 
   // Update Chart B Legends
   document.getElementById('leg-b-rw').innerText = `${m.rw.toFixed(1)} GB`;
-  document.getElementById('leg-b-rkv').innerText = `${staticResponderKV.toFixed(1)} GB`;
+  document.getElementById('leg-b-rkv').innerText = `${rawStaticRKV.toFixed(1)} GB`;
   document.getElementById('leg-b-aw').innerText = `${m.aw.toFixed(1)} GB`;
-  document.getElementById('leg-b-akv').innerText = `${staticAgentsKV.toFixed(1)} GB`;
+  document.getElementById('leg-b-akv').innerText = `${rawStaticAKV.toFixed(1)} GB`;
   document.getElementById('leg-b-lora').innerText = `${m.lora.toFixed(1)} GB`;
   document.getElementById('leg-b-gap').innerText = `${staticGap.toFixed(1)} GB`;
 
@@ -671,14 +862,17 @@ function updateSimulation() {
   const alertBText = document.getElementById('dynamic-alert-b-text');
   const alertAText = document.getElementById('dynamic-alert-a-text');
 
-  if (state.phase === 'triage' || state.phase === 'redact') {
-    alertBText.innerHTML = `<strong>Root cause of 429/503s:</strong> During ${state.phase.toUpperCase()}, <code>vllm-agents</code> is restricted to a tight static ceiling of ${staticAgentsKV.toFixed(1)} GB while ${staticResponderKV.toFixed(1)} GB sits 100% idle and wasted on <code>vllm-responder</code>. Requests get dropped before GPU compute is even 30% utilized!`;
+  if (isVramTight) {
+    alertBText.innerHTML = `<strong>🚨 High Boot OOM Risk:</strong> Fixed weights of <strong>${m.name}</strong> (${fixedWeights.toFixed(1)} GB) consume over 80% of ${vram} GB VRAM! Rigid static partitions immediately fail to initialize. Switch to a 16GB, 24GB, or 40GB GPU preset.`;
+    alertAText.innerHTML = `<strong>Elastic Survival:</strong> With kvcached, only weights (${fixedWeights.toFixed(1)} GB) are anchored. The remaining ${sharedPool.toFixed(1)} GB is shared elastically page-by-page, allowing execution even under constrained headroom.`;
+  } else if (state.phase === 'triage' || state.phase === 'redact') {
+    alertBText.innerHTML = `<strong>Root cause of 429/503s:</strong> During ${state.phase.toUpperCase()}, <code>vllm-agents</code> is restricted to a tight static ceiling of ${rawStaticAKV.toFixed(1)} GB while ${rawStaticRKV.toFixed(1)} GB sits 100% idle and wasted on <code>vllm-responder</code>. Requests get dropped before GPU compute is even 30% utilized!`;
     alertAText.innerHTML = `<strong>Elastic Dynamic Lending:</strong> <code>vllm-agents</code> borrows up to ${dynamicAgentsKV.toFixed(1)} GB directly from the shared pool. It handles the burst with zero OOMs, and physical memory pages are returned immediately upon request completion.`;
   } else if (state.phase === 'respond') {
-    alertBText.innerHTML = `<strong>Synthesis Starvation:</strong> <code>vllm-responder</code> generates long-context replies but is restricted to ${staticResponderKV.toFixed(1)} GB while ${staticAgentsKV.toFixed(1)} GB sits idle on <code>vllm-agents</code>. High concurrency causes sudden 504 timeouts.`;
+    alertBText.innerHTML = `<strong>Synthesis Starvation:</strong> <code>vllm-responder</code> generates long-context replies but is restricted to ${rawStaticRKV.toFixed(1)} GB while ${rawStaticAKV.toFixed(1)} GB sits idle on <code>vllm-agents</code>. High concurrency causes sudden 504 timeouts.`;
     alertAText.innerHTML = `<strong>Full Bandwidth Synthesis:</strong> Responder expands dynamically to ${dynamicResponderKV.toFixed(1)} GB of KV memory, enabling large context windows and high concurrency with zero wasted partitions.`;
   } else if (state.phase === 'both') {
-    alertBText.innerHTML = `<strong>Contention & Thrashing:</strong> Both engines struggle within their rigid partitions (${staticAgentsKV.toFixed(1)} GB and ${staticResponderKV.toFixed(1)} GB). Traffic spikes cause immediate circuit breaker tripping.`;
+    alertBText.innerHTML = `<strong>Contention & Thrashing:</strong> Both engines struggle within their rigid partitions (${rawStaticAKV.toFixed(1)} GB and ${rawStaticRKV.toFixed(1)} GB). Traffic spikes cause immediate circuit breaker tripping.`;
     alertAText.innerHTML = `<strong>Proportional Fair Sharing:</strong> kvcached arbitrates physical pages elastically between both engines (${dynamicResponderKV.toFixed(1)} GB and ${dynamicAgentsKV.toFixed(1)} GB) based on live token generation demands.`;
   } else {
     alertBText.innerHTML = `<strong>Cold Standby Waste:</strong> At zero load, ${staticLockedTotal.toFixed(1)} GB of physical VRAM is pre-locked and unavailable to any other process on your system.`;
@@ -686,7 +880,7 @@ function updateSimulation() {
   }
 
   // Update Horizontal Memory Bar
-  renderMemoryBars(vram, m, staticResponderKV, staticAgentsKV, staticGap, dynamicResponderKV, dynamicAgentsKV, freeDynamicPool, sharedPool);
+  renderMemoryBars(vram, m, rawStaticRKV, rawStaticAKV, staticGap, dynamicResponderKV, dynamicAgentsKV, freeDynamicPool, sharedPool);
 }
 
 // Render the segmented horizontal memory bars
