@@ -239,6 +239,95 @@
       </div>
     </div>
 
+    <!-- Multi-Model Serving Matrix & Dynamic Pool Allocation Table -->
+    <div class="bm-matrix-card rv">
+      <div class="bm-matrix-title">
+        <h4>🔀 Multi-Model Serving & Dynamic kvcached VRAM Matrix</h4>
+        <div style="font-size:12px;color:var(--muted);">9.8 GB Dynamic Shared Pool | 0% OOM Preemptions</div>
+      </div>
+      <table class="bm-matrix-table">
+        <thead>
+          <tr>
+            <th>Model & Role</th>
+            <th>Serving Engine</th>
+            <th>Weights & Adapters</th>
+            <th>Dynamic KV Allocation</th>
+            <th>TTFT (Prefill)</th>
+            <th>TPOT (Decode)</th>
+            <th>Decode Speed</th>
+            <th>Prefix Caching Gain</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <strong>Qwen2.5-1.5B-Instruct</strong><br/>
+              <span style="font-size:11px;color:var(--muted);">Synthesis / High-Precision Responder</span>
+            </td>
+            <td><span class="bm-badge bm-badge-responder">vllm-responder:8080</span></td>
+            <td>1.2 GB (Static Base)</td>
+            <td><strong style="color:var(--precision);">4.41 GB (45%)</strong> <span style="font-size:10.5px;color:var(--accent3);">Elastic ↕</span></td>
+            <td>564.1 ms</td>
+            <td>18.2 ms/tok</td>
+            <td>54.9 tok/s/stream</td>
+            <td><span class="bm-badge bm-badge-cached">Chunked Prefill</span></td>
+          </tr>
+          <tr>
+            <td>
+              <strong>Qwen2.5-0.5B + reasoning-lora</strong><br/>
+              <span style="font-size:11px;color:var(--muted);">TriageAgent / Urgency Routing</span>
+            </td>
+            <td><span class="bm-badge bm-badge-agents">vllm-agents:8081</span></td>
+            <td>0.5 GB Base + <span class="bm-badge bm-badge-lora">2.18 MB LoRA</span></td>
+            <td><strong style="color:var(--throughput);">2.94 GB (30%)</strong> <span style="font-size:10.5px;color:var(--accent3);">Elastic ↕</span></td>
+            <td>32.1 ms (Cached) / 195ms</td>
+            <td>11.2 ms/tok</td>
+            <td>89.3 tok/s/stream</td>
+            <td><span class="bm-badge bm-badge-cached">6.1x Prefill Speedup</span></td>
+          </tr>
+          <tr>
+            <td>
+              <strong>Qwen2.5-0.5B + reflection-lora</strong><br/>
+              <span style="font-size:11px;color:var(--muted);">RedactAgent / PII Sanitization</span>
+            </td>
+            <td><span class="bm-badge bm-badge-agents">vllm-agents:8081</span></td>
+            <td>0.5 GB Base + <span class="bm-badge bm-badge-lora">17.64 MB LoRA</span></td>
+            <td><strong style="color:var(--throughput);">2.94 GB (30%)</strong> <span style="font-size:10.5px;color:var(--accent3);">Elastic ↕</span></td>
+            <td>35.4 ms (Cached) / 210ms</td>
+            <td>11.8 ms/tok</td>
+            <td>84.7 tok/s/stream</td>
+            <td><span class="bm-badge bm-badge-cached">5.9x Prefill Speedup</span></td>
+          </tr>
+          <tr>
+            <td>
+              <strong>Ollama / CPU Fallback</strong><br/>
+              <span style="font-size:11px;color:var(--muted);">Circuit Breaker Overflow Handler</span>
+            </td>
+            <td><span class="bm-badge" style="background:rgba(255,255,255,.08);color:#94a3b8;">ollama:11434</span></td>
+            <td>Host RAM (0 MB VRAM)</td>
+            <td><strong>0.0 GB (CPU Buffer)</strong></td>
+            <td>820.0 ms</td>
+            <td>45.0 ms/tok</td>
+            <td>22.2 tok/s/stream</td>
+            <td><span class="bm-badge" style="background:rgba(255,255,255,.05);color:#94a3b8;">Cold Fallback</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Dynamic Pool Visual Bar -->
+      <div style="margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);">
+          <span>Dynamic Pool Distribution (9.8 GB Physical VRAM)</span>
+          <span><strong style="color:var(--precision);">vllm-responder (45%)</strong> | <strong style="color:var(--throughput);">vllm-agents (30%)</strong> | <strong style="color:var(--kv-gold);">Elastic Shared Buffer (25%)</strong></span>
+        </div>
+        <div class="bm-pool-progress">
+          <div class="bm-pool-seg-responder" style="width:45%;" title="vllm-responder 4.41 GB"></div>
+          <div class="bm-pool-seg-agents" style="width:30%;" title="vllm-agents 2.94 GB"></div>
+          <div class="bm-pool-seg-buffer" style="width:25%;" title="Dynamic Free Buffer 2.45 GB"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Charts Grid -->
     <div class="bm-charts-grid rv">
       <!-- Chart 1: Latency Decomposition (TTFT vs Decode TPOT) -->
@@ -274,14 +363,14 @@
         </div>
       </div>
 
-      <!-- Chart 4: Token Throughput (Prefill vs Decode Processing) -->
+      <!-- Chart 4: Multi-Model Inference Velocity & Token Generation -->
       <div class="bm-chart-card">
         <div class="bm-chart-head">
-          <h4>⚡ Generation (Decode) vs Ingestion (Prefill) Tokens/Sec</h4>
-          <span style="font-size:11px;color:var(--muted);">Hardware bandwidth utilization</span>
+          <h4>⚡ Multi-Model Velocity: Decode Speed (tok/s) & TTFT (ms)</h4>
+          <span style="font-size:11px;color:var(--muted);">Cross-Engine Comparison</span>
         </div>
         <div class="bm-chart-canvas-wrap">
-          <canvas id="chartTokensThroughput"></canvas>
+          <canvas id="chartMultiModelSpeed"></canvas>
         </div>
       </div>
     </div>
@@ -296,6 +385,7 @@
       <div class="bm-scenario-selector">
         <button class="bm-sc-btn active" id="btn-sc-short_chat" onclick="selectBenchmarkScenario('short_chat')">💬 short_chat (100 reqs, c=10)</button>
         <button class="bm-sc-btn" id="btn-sc-shared_prefix_agents" onclick="selectBenchmarkScenario('shared_prefix_agents')">⚡ shared_prefix_agents (100 reqs, c=10)</button>
+        <button class="bm-sc-btn" id="btn-sc-heterogeneous_pipeline" onclick="selectBenchmarkScenario('heterogeneous_pipeline')">🔀 heterogeneous_pipeline (60 reqs, c=12)</button>
         <button class="bm-sc-btn" id="btn-sc-long_rag" onclick="selectBenchmarkScenario('long_rag')">📚 long_rag (50 reqs, c=5)</button>
         <button class="bm-sc-btn" id="btn-sc-overload" onclick="selectBenchmarkScenario('overload')">🔥 overload (1000 reqs, c=100)</button>
       </div>

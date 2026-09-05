@@ -1,0 +1,31 @@
+name: "heterogeneous_pipeline"
+description: "Cross-engine heterogeneous pipeline benchmark testing multi-model routing and dynamic kvcached VRAM pooling"
+concurrency: 12
+requests: 60
+workload_type: "heterogeneous_pipeline"
+payloads:
+  - workload_type: "triage"
+    model: "reasoning-lora"
+    messages:
+      - role: "system"
+        content: "You are an automated triage agent. Classify customer inquiries into urgency tiers."
+      - role: "user"
+        content: "Urgent: Payment failed on invoice #9402, client cannot access platform."
+    max_tokens: 25
+  - workload_type: "redactor"
+    model: "reflection-lora"
+    messages:
+      - role: "system"
+        content: "You are a privacy redaction agent. Sanitize PII from incoming customer tickets."
+      - role: "user"
+        content: "Customer John Doe (SSN: 000-12-3456, phone: 555-0199) requested account reset."
+    max_tokens: 25
+  - workload_type: "responder"
+    model: "Qwen/Qwen2.5-1.5B-Instruct"
+    messages:
+      - role: "system"
+        content: "You are a tier-2 customer support responder. Synthesize the redacted inquiry and issue solution."
+      - role: "user"
+        content: "Ticket #9402: Triage: High Urgency. Customer payment failed due to gateway timeout. Provide response."
+    max_tokens: 60
+
