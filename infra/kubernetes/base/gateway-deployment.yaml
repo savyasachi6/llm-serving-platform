@@ -24,7 +24,7 @@ spec:
     type: RollingUpdate
     rollingUpdate:
       maxSurge: 1        # Allow 1 extra pod during rollout (total 4)
-      maxUnavailable: 0  # Ensure all 3 existing pods stay live until new pod is ready
+      maxUnavailable: 1  # Allow 1 pod to terminate immediately for faster local cluster rollouts
   # Pod selector: Links this Deployment controller to its managed Pod replicas
   selector:
     matchLabels:
@@ -37,6 +37,7 @@ spec:
         app.kubernetes.io/part-of: llm-serving-platform
         app: gateway
     spec:
+      terminationGracePeriodSeconds: 5
       containers:
         - name: gateway
           # Image built from apps/gateway/Dockerfile

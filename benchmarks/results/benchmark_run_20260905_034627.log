@@ -1,0 +1,45 @@
+Using CPython 3.14.4 interpreter at: /usr/bin/python3
+Removed virtual environment at: .venv
+Creating virtual environment at: .venv
+Downloading ruff (9.8MiB)
+Downloading pygments (1.2MiB)
+Downloading pydantic-core (2.0MiB)
+ Downloaded pygments
+ Downloaded pydantic-core
+ Downloaded ruff
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 28 packages in 17.41s
+--------------------------------------------------
+  Scenario   : long_rag
+  Workload   : reasoning
+  Requests   : 50  (concurrency=5)
+  Success    : 50 / Failures: 0
+  Throughput : 0.68 req/s
+  Latency    : avg=7.283s  p50=1.410s  p95=62.835s  p99=63.377s
+--------------------------------------------------
+--------------------------------------------------
+  Scenario   : overload
+  Workload   : chat
+  Requests   : 1000  (concurrency=100)
+  Success    : 1000 / Failures: 0
+  Throughput : 20.93 req/s
+  Latency    : avg=4.297s  p50=4.199s  p95=6.059s  p99=6.833s
+--------------------------------------------------
+--------------------------------------------------
+  Scenario   : shared_prefix_agents
+  Workload   : chat
+  Requests   : 100  (concurrency=10)
+  Success    : 100 / Failures: 0
+  Throughput : 16.18 req/s
+  Latency    : avg=0.571s  p50=0.501s  p95=1.050s  p99=1.421s
+--------------------------------------------------
+--------------------------------------------------
+  Scenario   : short_chat
+  Workload   : chat
+  Requests   : 100  (concurrency=10)
+  Success    : 100 / Failures: 0
+  Throughput : 11.58 req/s
+  Latency    : avg=0.781s  p50=0.787s  p95=1.372s  p99=1.991s
+--------------------------------------------------

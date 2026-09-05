@@ -5,9 +5,8 @@
 # Serves Qwen/Qwen2.5-1.5B-Instruct without dynamic adapters.
 #
 # Memory Strategy:
-#   In the baseline static configuration, --gpu-memory-utilization is restricted
-#   to 0.38 (~4.6GB on a 12GB GPU), leaving the remainder of the VRAM for the
-#   vllm-agents node (0.22) and system buffers under NVIDIA GPU time-slicing.
+#   Using kvcached for dynamic memory pooling. The virtual ceiling is set to 0.90,
+#   but physical memory is allocated elastically via the /tmp/kvcached-ipc socket.
 # ==============================================================================
 
 apiVersion: apps/v1
@@ -35,15 +34,15 @@ spec:
     spec:
       containers:
         - name: vllm-responder
-          image: vllm/vllm-openai:latest
+          image: ghcr.io/ovg-project/kvcached-vllm:v0.24.0
           imagePullPolicy: IfNotPresent
           command:
             - vllm
             - serve
             - Qwen/Qwen2.5-1.5B-Instruct
-            # Static VRAM restriction: allocates ~38% of physical VRAM for weights + KV cache
+            # Virtual VRAM ceiling: kvcached manages physical allocation dynamically
             - --gpu-memory-utilization
-            - "0.38"
+            - "0.90"
             - --max-model-len
             - "2048"
             - --enforce-eager
@@ -54,6 +53,13 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
+            # Route KV cache requests dynamically through the IPC socket to kvcached:
+            - name: ENABLE_KVCACHED
+              value: "true"
+            - name: KVCACHED_AUTOPATCH
+              value: "1"
+            - name: KVCACHED_IPC_PATH
+              value: "/tmp/kvcached-ipc/kvcached.sock"
             # WSL2 / Container Toolkit host pin memory optimization
             - name: VLLM_WSL2_ENABLE_PIN_MEMORY
               value: "1"
@@ -71,6 +77,15 @@ spec:
             limits:
               cpu: "4000m"
               memory: "8Gi"
+          volumeMounts:
+            # Mount the shared IPC socket directory from the kvcached daemonset
+            - name: kvcached-ipc
+              mountPath: /tmp/kvcached-ipc
+      volumes:
+        - name: kvcached-ipc
+          hostPath:
+            path: /tmp/kvcached-ipc
+            type: DirectoryOrCreate
 ---
 # ==============================================================================
 # vLLM Responder Internal Service

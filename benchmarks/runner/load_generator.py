@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import sys
 import time
@@ -26,7 +27,7 @@ sys.path.append(
 from common.config import settings
 
 
-async def run_scenario(scenario_path: str):
+async def run_scenario(scenario_path: str, output_path: str = None):
     import yaml
 
     with open(scenario_path) as f:
@@ -76,11 +77,11 @@ async def run_scenario(scenario_path: str):
     p50 = percentile(durations, 50)
     p95 = percentile(durations, 95)
     p99 = percentile(durations, 99)
-    rps = num_requests / total_time
+    rps = num_requests / total_time if total_time > 0 else 0
 
     sep = "-" * 50
     print(sep)
-    print(f"  Scenario   : {scenario['name']}")
+    print(f"  Scenario   : {scenario.get('name', os.path.basename(scenario_path))}")
     print(f"  Workload   : {workload_type}")
     print(f"  Requests   : {num_requests}  (concurrency={concurrency})")
     print(f"  Success    : {len(successes)} / Failures: {len(failures)}")
@@ -92,11 +93,50 @@ async def run_scenario(scenario_path: str):
             print(f"  [FAIL] status={f['status']}  err={f.get('error', '')}")
     print(sep)
 
+    scenario_metrics = {
+        "scenario": scenario.get("name", os.path.basename(scenario_path)),
+        "description": scenario.get("description", ""),
+        "workload_type": workload_type,
+        "concurrency": concurrency,
+        "requests": num_requests,
+        "total_time_s": round(total_time, 4),
+        "success_count": len(successes),
+        "failure_count": len(failures),
+        "success_rate_pct": round((len(successes) / num_requests * 100) if num_requests else 0, 2),
+        "throughput_rps": round(rps, 2),
+        "latency": {
+            "avg_s": round(avg_latency, 4),
+            "p50_s": round(p50, 4),
+            "p95_s": round(p95, 4),
+            "p99_s": round(p99, 4),
+        },
+        "failures_sample": failures[:5] if failures else [],
+    }
+
+    if output_path:
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        existing_data = []
+        if os.path.exists(output_path):
+            try:
+                with open(output_path, "r", encoding="utf-8") as out_f:
+                    existing_data = json.load(out_f)
+                if not isinstance(existing_data, list):
+                    existing_data = [existing_data]
+            except Exception:
+                existing_data = []
+        existing_data.append(scenario_metrics)
+        with open(output_path, "w", encoding="utf-8") as out_f:
+            json.dump(existing_data, out_f, indent=2)
+
+    return scenario_metrics
+
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", required=True)
+    parser = argparse.ArgumentParser(description="LLM Serving Load Generator & Benchmark Runner")
+    parser.add_argument("--scenario", required=True, help="Path to scenario YAML file")
+    parser.add_argument("--output", default=None, help="Optional JSON file path to append benchmark results")
     args = parser.parse_args()
-    asyncio.run(run_scenario(args.scenario))
+    asyncio.run(run_scenario(args.scenario, output_path=args.output))
+

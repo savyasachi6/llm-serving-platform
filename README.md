@@ -75,6 +75,7 @@ kubectl get pods -n llm-serving
 | **Multi-LoRA Serving** | [Multi-LoRA & Heterogeneous Serving](docs/architecture/multi_lora_and_heterogeneous_serving_explained.md) | Dynamic adapter hot-swapping and CUDA kernel internals. |
 | **Frontend Playground** | [Playground UI Guide](docs/architecture/frontend_playground_and_kubernetes_guide.md) | Real-time React dashboard for customer support ticket assembly line. |
 | **Local Setup & Docker** | [Docker Guide](docs/docker-guide.md) | Multi-stage builds, port mappings, named volumes, and bridge networks. |
+| **Windows WSL2 Setup** | [Windows WSL2 Guide](docs/operations/windows_wsl2_guide.md) | Step-by-step setup for running with GPU acceleration natively on Windows. |
 | **Kubernetes** | [Kubernetes Deployment Guide](docs/kubernetes-guide.md) | Manifests, resource budgeting, DaemonSet IPC sockets, and HPA. |
 | **Troubleshooting** | [Troubleshooting Guide](docs/troubleshooting.md) | Container exit codes, healthcheck timeouts, Pending pods, and PVCs. |
 | **Configuration** | [Configuration Guide](docs/configuration.md) | Full environment variable matrix, secrets, and model swapping. |
@@ -83,6 +84,7 @@ kubectl get pods -n llm-serving
 
 ## 🧭 Choose Your Path
 - **I want to run the project locally**: Start with the [Docker Guide](docs/docker-guide.md).
+- **I am on Windows**: Read the [Windows WSL2 Guide](docs/operations/windows_wsl2_guide.md) to set up GPU inference.
 - **I want to deploy the project**: Read the [Kubernetes Guide](docs/kubernetes-guide.md).
 - **I want to explore the Playground UI**: Check the [Playground Guide](docs/architecture/frontend_playground_and_kubernetes_guide.md) or [apps/playground/README.md](apps/playground/README.md).
 - **I am troubleshooting an issue**: Check the [Troubleshooting Guide](docs/troubleshooting.md).

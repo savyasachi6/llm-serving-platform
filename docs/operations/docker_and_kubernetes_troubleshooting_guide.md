@@ -188,29 +188,44 @@ kubectl port-forward svc/agent-worker 8001:8001
 # 1. Download genuine fine-tuned LoRA checkpoints
 python scripts/lora/download_loras.py
 
-# 2. Start vLLM Precision (Port 8080 - Reasoning & Synthesis)
+# 2. Start kvcached Memory Manager Daemon (Requires /tmp/kvcached-ipc volume)
+docker run -d --name kvcached \
+  --gpus all \
+  -e NVIDIA_VISIBLE_DEVICES=all \
+  -v /tmp/kvcached-ipc:/tmp/kvcached-ipc \
+  ghcr.io/ovg-project/kvcached:latest
+
+# 3. Start vLLM Precision (Port 8080 - Reasoning & Synthesis)
 docker run -d --name vllm-responder \
   --gpus all \
   -e VLLM_WSL2_ENABLE_PIN_MEMORY=1 \
+  -e ENABLE_KVCACHED=true \
+  -e KVCACHED_AUTOPATCH=1 \
+  -e KVCACHED_IPC_PATH=/tmp/kvcached-ipc/kvcached.sock \
   -p 8080:8080 \
+  -v /tmp/kvcached-ipc:/tmp/kvcached-ipc \
   -v vllm_cache:/root/.cache/huggingface \
-  vllm/vllm-openai:latest \
+  ghcr.io/ovg-project/kvcached-vllm:v0.24.0 \
   Qwen/Qwen2.5-1.5B-Instruct \
-  --gpu-memory-utilization 0.45 \
+  --gpu-memory-utilization 0.90 \
   --max-model-len 2048 \
   --enforce-eager \
   --port 8080
 
-# 3. Start vLLM Throughput with Multi-LoRA (Port 8081 - Fast Actions & Adapters)
+# 4. Start vLLM Throughput with Multi-LoRA (Port 8081 - Fast Actions & Adapters)
 docker run -d --name vllm-agents \
   --gpus all \
   -e VLLM_WSL2_ENABLE_PIN_MEMORY=1 \
+  -e ENABLE_KVCACHED=true \
+  -e KVCACHED_AUTOPATCH=1 \
+  -e KVCACHED_IPC_PATH=/tmp/kvcached-ipc/kvcached.sock \
   -p 8081:8080 \
   -v "${PWD}/lora_adapters:/lora_adapters" \
+  -v /tmp/kvcached-ipc:/tmp/kvcached-ipc \
   -v vllm_cache:/root/.cache/huggingface \
-  vllm/vllm-openai:latest \
+  ghcr.io/ovg-project/kvcached-vllm:v0.24.0 \
   Qwen/Qwen2.5-0.5B-Instruct \
-  --gpu-memory-utilization 0.30 \
+  --gpu-memory-utilization 0.90 \
   --max-model-len 1024 \
   --enforce-eager \
   --enable-lora \
@@ -218,7 +233,7 @@ docker run -d --name vllm-agents \
   --lora-modules reasoning-lora=/lora_adapters/reasoning-lora reflection-lora=/lora_adapters/reflection-lora \
   --port 8080
 
-# 4. Verify loaded models and adapters
+# 5. Verify loaded models and adapters
 curl.exe http://localhost:8081/v1/models
 ```
 

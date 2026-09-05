@@ -220,28 +220,43 @@ python -c "import httpx; r = httpx.post('http://localhost:8081/v1/chat/completio
 ### 5.1 Starting the Dual vLLM Servers Locally (Docker + GPU)
 
 ```bash
-# 1. Start vLLM Precision (Port 8080 - Reasoning & Synthesis)
+# 1. Start kvcached Memory Manager Daemon (Requires /tmp/kvcached-ipc volume)
+docker run -d --name kvcached \
+  --gpus all \
+  -e NVIDIA_VISIBLE_DEVICES=all \
+  -v /tmp/kvcached-ipc:/tmp/kvcached-ipc \
+  ghcr.io/ovg-project/kvcached:latest
+
+# 2. Start vLLM Precision (Port 8080 - Reasoning & Synthesis)
 docker run -d --name vllm-responder \
   --gpus all \
   -e VLLM_WSL2_ENABLE_PIN_MEMORY=1 \
+  -e ENABLE_KVCACHED=true \
+  -e KVCACHED_AUTOPATCH=1 \
+  -e KVCACHED_IPC_PATH=/tmp/kvcached-ipc/kvcached.sock \
   -p 8080:8080 \
+  -v /tmp/kvcached-ipc:/tmp/kvcached-ipc \
   -v vllm_cache:/root/.cache/huggingface \
-  vllm/vllm-openai:latest \
+  ghcr.io/ovg-project/kvcached-vllm:v0.24.0 \
   Qwen/Qwen2.5-1.5B-Instruct \
-  --gpu-memory-utilization 0.45 \
+  --gpu-memory-utilization 0.90 \
   --max-model-len 2048 \
   --enforce-eager \
   --port 8080
 
-# 2. Start vLLM Throughput with Multi-LoRA (Port 8081 - Fast Actions & Adapters)
+# 3. Start vLLM Throughput with Multi-LoRA (Port 8081 - Fast Actions & Adapters)
 docker run -d --name vllm-agents \
   --gpus all \
   -e VLLM_WSL2_ENABLE_PIN_MEMORY=1 \
+  -e ENABLE_KVCACHED=true \
+  -e KVCACHED_AUTOPATCH=1 \
+  -e KVCACHED_IPC_PATH=/tmp/kvcached-ipc/kvcached.sock \
   -p 8081:8080 \
+  -v /tmp/kvcached-ipc:/tmp/kvcached-ipc \
   -v vllm_cache:/root/.cache/huggingface \
-  vllm/vllm-openai:latest \
+  ghcr.io/ovg-project/kvcached-vllm:v0.24.0 \
   Qwen/Qwen2.5-0.5B-Instruct \
-  --gpu-memory-utilization 0.30 \
+  --gpu-memory-utilization 0.90 \
   --max-model-len 1024 \
   --enforce-eager \
   --enable-lora \
