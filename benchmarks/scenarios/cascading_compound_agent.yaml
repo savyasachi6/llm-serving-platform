@@ -1,0 +1,38 @@
+name: "cascading_compound_agent"
+description: "End-to-end multi-agent compound AI pipeline evaluating orchestrator decomposition, parallel worker execution, shared prefix reuse, and compound trace latency"
+concurrency: 8
+requests: 48
+workload_type: "cascading_compound_agent"
+payloads:
+  - workload_type: "planner"
+    model: "Qwen/Qwen2.5-1.5B-Instruct"
+    messages:
+      - role: "system"
+        content: "You are the Master Orchestration Agent in a multi-agent compound AI system. Decompose incoming business problems into parallel task execution graphs for specialized micro-agents."
+      - role: "user"
+        content: "Customer ticket: 'Invoice #8412 shows unexpected surcharge of $420. Account admin bob@partner.org requested audit.' Produce an execution DAG for Triage, Redact, and Settlement."
+    max_tokens: 50
+  - workload_type: "triage"
+    model: "reasoning-lora"
+    messages:
+      - role: "system"
+        content: "You are the Triage Micro-Agent in a multi-agent compound AI system. Analyze task items from the Master Orchestration Agent and assign priority, routing queues, and escalation flags."
+      - role: "user"
+        content: "DAG Step 1: Evaluate ticket #8412 financial discrepancy of $420 for enterprise partner tier."
+    max_tokens: 25
+  - workload_type: "redactor"
+    model: "reflection-lora"
+    messages:
+      - role: "system"
+        content: "You are the Redaction Micro-Agent in a multi-agent compound AI system. Sanitize raw customer communication and audit logs before persistence or downstream generation."
+      - role: "user"
+        content: "DAG Step 2: Sanitize partner record: bob@partner.org, tax ID 94-2049182, account balance $58,200."
+    max_tokens: 30
+  - workload_type: "responder"
+    model: "Qwen/Qwen2.5-1.5B-Instruct"
+    messages:
+      - role: "system"
+        content: "You are the Final Synthesis Micro-Agent in a multi-agent compound AI system. Collate verified outputs from specialized triage and redaction micro-agents to generate customer-facing resolution."
+      - role: "user"
+        content: "DAG Step 3: Synthesis. Triage status: High Priority Billing adjustment approved. Redacted target: [REDACTED_ADMIN]. Draft final resolution."
+    max_tokens: 70

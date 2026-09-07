@@ -86,15 +86,15 @@
             <span class="ctrl-val" id="ctrl-model-text">Qwen 1.5B + 0.5B</span>
           </div>
           <select class="sim-select" id="model-select" onchange="onModelChange(this.value)">
-            <option value="qwen-default" selected>Qwen 2.5: 1.5B Precision + 0.5B Agents (Default — 8–12GB GPUs)</option>
-            <option value="llama-family">Llama 3.2: 3B Precision + 1B Agents (Meta Compact — 12–16GB GPUs)</option>
-            <option value="deepseek-r1">DeepSeek-R1 Distill: 7B Reasoning + Qwen 0.5B Agents (16–24GB GPUs)</option>
-            <option value="mistral-stack">Mistral: 7B Instruct AWQ + Ministral 3B Agents (Enterprise Multilingual)</option>
-            <option value="gemma2-stack">Gemma 2: 9B Instruct AWQ + 2B Agents (Google High-Precision)</option>
-            <option value="phi-enterprise">Phi-4: 14B AWQ + Phi-3.5 3.8B Agents (Microsoft High-Density)</option>
-            <option value="enterprise-8b">Enterprise: Llama-3.1 8B AWQ + Qwen 2.5 3B Agents</option>
+            <option value="qwen-default" selected>Qwen 2.5: 1.5B Precision + 0.5B Worker (Default — 8-12GB VRAM)</option>
+            <option value="llama-family">Llama 3.2: 3B Precision + 1B Worker (Meta Compact — 12-16GB VRAM)</option>
+            <option value="deepseek-r1">DeepSeek-R1 Distill: 7B Reasoning + Qwen 0.5B Worker (16-24GB VRAM)</option>
+            <option value="mistral-stack">Mistral: 7B Instruct AWQ + Ministral 3B Worker (Enterprise Multilingual)</option>
+            <option value="gemma2-stack">Gemma 2: 9B Instruct AWQ + 2B Worker (Google High-Precision)</option>
+            <option value="phi-enterprise">Phi-4: 14B AWQ + Phi-3.5 3.8B Worker (Microsoft High-Density)</option>
+            <option value="enterprise-8b">Enterprise: Llama-3.1 8B AWQ + Qwen 2.5 3B Worker</option>
           </select>
-          <div style="font-size:11px;color:var(--muted);margin-top:10px;">Weights: <span id="model-weights-desc">Responder 1.2 GB | Agents 0.5 GB | LoRAs 0.5 GB</span></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:10px;">Weights: <span id="model-weights-desc">Synthesiser 1.2 GB | Worker 0.5 GB | LoRAs 0.5 GB</span></div>
         </div>
       </div>
 
@@ -102,13 +102,13 @@
       <div style="margin-top:8px;">
         <div class="ctrl-label">
           <span>Active Pipeline Traffic Phase</span>
-          <span class="ctrl-val" id="ctrl-phase-text">Phase 1: Triage Burst</span>
+          <span class="ctrl-val" id="ctrl-phase-text">Phase 1: Classification Burst</span>
         </div>
         <div class="traffic-phase-bar">
           <button class="traffic-btn" id="phase-idle" onclick="setTrafficPhase('idle')">⏸️ Idle (0 in-flight)</button>
-          <button class="traffic-btn active" id="phase-triage" onclick="setTrafficPhase('triage')">🏷️ Step 1: Triage Burst</button>
-          <button class="traffic-btn" id="phase-redact" onclick="setTrafficPhase('redact')">🛡️ Step 2: Redact Burst</button>
-          <button class="traffic-btn" id="phase-respond" onclick="setTrafficPhase('respond')">✍️ Step 3: Respond Burst</button>
+          <button class="traffic-btn active" id="phase-triage" onclick="setTrafficPhase('triage')">🏷️ Step 1: Classification Burst</button>
+          <button class="traffic-btn" id="phase-redact" onclick="setTrafficPhase('redact')">🛡️ Step 2: Extraction Burst</button>
+          <button class="traffic-btn" id="phase-respond" onclick="setTrafficPhase('respond')">✍️ Step 3: Synthesis Burst</button>
           <button class="traffic-btn" id="phase-both" onclick="setTrafficPhase('both')">⚡ Heavy Concurrency</button>
           <button class="traffic-btn auto-btn" id="phase-auto" onclick="toggleAutoPlay()">▶️ Auto-Cycle Workflow</button>
         </div>
@@ -153,16 +153,16 @@
           </div>
         </div>
         <div class="leg">
-          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Responder weights</div><div class="gb" id="leg-b-rw">1.2 GB</div></div>
-          <div class="lr"><div class="lg2"><div class="sw" style="background:#818cf8;"></div>Responder KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" id="leg-b-rkv" style="color:var(--danger);">5.5 GB</div></div>
-          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Agents weights</div><div class="gb" id="leg-b-aw">0.5 GB</div></div>
-          <div class="lr"><div class="lg2"><div class="sw" style="background:#34d399;"></div>Agents KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" id="leg-b-akv" style="color:var(--danger);">3.7 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Synthesiser weights</div><div class="gb" id="leg-b-rw">1.2 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#818cf8;"></div>Synthesiser KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" id="leg-b-rkv" style="color:var(--danger);">5.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Worker weights</div><div class="gb" id="leg-b-aw">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#34d399;"></div>Worker KV <strong style="color:var(--danger);">LOCKED</strong></div><div class="gb" id="leg-b-akv" style="color:var(--danger);">3.7 GB</div></div>
           <div class="lr"><div class="lg2"><div class="sw" style="background:#374151;"></div>LoRA adapters</div><div class="gb" id="leg-b-lora">0.5 GB</div></div>
           <div class="lr"><div class="lg2"><div class="sw" style="background:#1f2937;"></div>Unusable / Idle gap</div><div class="gb" id="leg-b-gap">0.6 GB</div></div>
         </div>
         <div class="cal cdx" id="dynamic-alert-b">
           <div class="ic">⚠️</div>
-          <div id="dynamic-alert-b-text"><strong>Root cause of 429/503s:</strong> When Triage bursts, <code>vllm-agents</code> is capped at 3.7 GB while 5.5 GB sits 100% idle on <code>vllm-responder</code>. You OOM despite 45% of GPU memory remaining completely untouched!</div>
+          <div id="dynamic-alert-b-text"><strong>Root cause of 429/503s:</strong> When Classification bursts, <code>vllm-worker</code> is capped at 3.7 GB while 5.5 GB sits 100% idle on <code>vllm-responder</code>. You OOM despite 45% of GPU memory remaining completely untouched!</div>
         </div>
       </div>
 
@@ -183,16 +183,16 @@
           </div>
         </div>
         <div class="leg">
-          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Responder weights (static)</div><div class="gb" id="leg-a-rw">1.2 GB</div></div>
-          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(129,140,248,.45);"></div>Responder KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" id="leg-a-rkv" style="color:var(--accent3);">0 → 9.8 GB</div></div>
-          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Agents weights (static)</div><div class="gb" id="leg-a-aw">0.5 GB</div></div>
-          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(52,211,153,.45);"></div>Agents KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" id="leg-a-akv" style="color:var(--accent3);">0 → 9.8 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#4338ca;"></div>Synthesiser weights (static)</div><div class="gb" id="leg-a-rw">1.2 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(129,140,248,.45);"></div>Synthesiser KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" id="leg-a-rkv" style="color:var(--accent3);">0 → 9.8 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:#065f46;"></div>Worker weights (static)</div><div class="gb" id="leg-a-aw">0.5 GB</div></div>
+          <div class="lr"><div class="lg2"><div class="sw" style="background:rgba(52,211,153,.45);"></div>Worker KV <strong style="color:var(--accent3);">elastic ↕</strong></div><div class="gb" id="leg-a-akv" style="color:var(--accent3);">0 → 9.8 GB</div></div>
           <div class="lr"><div class="lg2"><div class="sw" style="background:#374151;"></div>LoRA adapters</div><div class="gb" id="leg-a-lora">0.5 GB</div></div>
           <div class="lr"><div class="lg2"><div class="sw" style="background:#f59e0b;"></div>Shared dynamic pool</div><div class="gb" id="leg-a-pool" style="color:var(--kv-gold);">9.8 GB</div></div>
         </div>
         <div class="cal csx" id="dynamic-alert-a">
           <div class="ic">✅</div>
-          <div id="dynamic-alert-a-text"><strong>Dynamic Lending:</strong> Both engines borrow from the unified 9.8 GB pool. Triage expands to full capacity without artificial ceilings, then returns pages immediately when Step 1 finishes.</div>
+          <div id="dynamic-alert-a-text"><strong>Dynamic Lending:</strong> Both engines borrow from the unified 9.8 GB pool. Classification expands to full capacity without artificial ceilings, then returns pages immediately when Step 1 finishes.</div>
         </div>
 </section>
 
@@ -239,6 +239,35 @@
       </div>
     </div>
 
+    <!-- Advanced Production Telemetry Grid -->
+    <div class="bm-stats-grid rv" style="margin-top:12px;">
+      <div class="bm-stat-card">
+        <div class="bm-stat-label">🚦 Gateway Queue Delay</div>
+        <div class="bm-stat-val" id="bm-stat-queue">0.45 ms</div>
+        <div class="bm-stat-sub">p95 &lt; 2.1 ms under nominal load</div>
+      </div>
+      <div class="bm-stat-card">
+        <div class="bm-stat-label">🌊 Streaming ITL Jitter</div>
+        <div class="bm-stat-val" id="bm-stat-jitter">±2.8 ms</div>
+        <div class="bm-stat-sub">Smooth jitter-free human reading</div>
+      </div>
+      <div class="bm-stat-card">
+        <div class="bm-stat-label">🔄 Multi-LoRA Cache Hit</div>
+        <div class="bm-stat-val" id="bm-stat-lora">82.4%</div>
+        <div class="bm-stat-sub">Zero-stall hot adapter switching</div>
+      </div>
+      <div class="bm-stat-card">
+        <div class="bm-stat-label">💰 Platform Cost / 1M Tokens</div>
+        <div class="bm-stat-val" id="bm-stat-cost" style="color:var(--accent3);">$0.021</div>
+        <div class="bm-stat-sub">92.8% savings vs proprietary APIs</div>
+      </div>
+      <div class="bm-stat-card">
+        <div class="bm-stat-label">🎖️ Strict SLA Attainment</div>
+        <div class="bm-stat-val" id="bm-stat-slo" style="color:var(--accent3);">98.6%</div>
+        <div class="bm-stat-sub">TTFT ≤ 350ms &amp; TPOT ≤ 25ms</div>
+      </div>
+    </div>
+
     <!-- Multi-Model Serving Matrix & Dynamic Pool Allocation Table -->
     <div class="bm-matrix-card rv">
       <div class="bm-matrix-title">
@@ -262,7 +291,7 @@
           <tr>
             <td>
               <strong>Qwen2.5-1.5B-Instruct</strong><br/>
-              <span style="font-size:11px;color:var(--muted);">Synthesis / High-Precision Responder</span>
+              <span style="font-size:11px;color:var(--muted);">Synthesis / High-Precision Synthesiser</span>
             </td>
             <td><span class="bm-badge bm-badge-responder">vllm-responder:8080</span></td>
             <td>1.2 GB (Static Base)</td>
@@ -275,9 +304,9 @@
           <tr>
             <td>
               <strong>Qwen2.5-0.5B + reasoning-lora</strong><br/>
-              <span style="font-size:11px;color:var(--muted);">TriageAgent / Urgency Routing</span>
+              <span style="font-size:11px;color:var(--muted);">ClassificationTask / Urgency Routing</span>
             </td>
-            <td><span class="bm-badge bm-badge-agents">vllm-agents:8081</span></td>
+            <td><span class="bm-badge bm-badge-worker">vllm-worker:8081</span></td>
             <td>0.5 GB Base + <span class="bm-badge bm-badge-lora">2.18 MB LoRA</span></td>
             <td><strong style="color:var(--throughput);">2.94 GB (30%)</strong> <span style="font-size:10.5px;color:var(--accent3);">Elastic ↕</span></td>
             <td>32.1 ms (Cached) / 195ms</td>
@@ -288,9 +317,9 @@
           <tr>
             <td>
               <strong>Qwen2.5-0.5B + reflection-lora</strong><br/>
-              <span style="font-size:11px;color:var(--muted);">RedactAgent / PII Sanitization</span>
+              <span style="font-size:11px;color:var(--muted);">ExtractionTask / PII Sanitization</span>
             </td>
-            <td><span class="bm-badge bm-badge-agents">vllm-agents:8081</span></td>
+            <td><span class="bm-badge bm-badge-worker">vllm-worker:8081</span></td>
             <td>0.5 GB Base + <span class="bm-badge bm-badge-lora">17.64 MB LoRA</span></td>
             <td><strong style="color:var(--throughput);">2.94 GB (30%)</strong> <span style="font-size:10.5px;color:var(--accent3);">Elastic ↕</span></td>
             <td>35.4 ms (Cached) / 210ms</td>
@@ -318,11 +347,11 @@
       <div style="margin-top:16px;">
         <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);">
           <span>Dynamic Pool Distribution (9.8 GB Physical VRAM)</span>
-          <span><strong style="color:var(--precision);">vllm-responder (45%)</strong> | <strong style="color:var(--throughput);">vllm-agents (30%)</strong> | <strong style="color:var(--kv-gold);">Elastic Shared Buffer (25%)</strong></span>
+          <span><strong style="color:var(--precision);">vllm-responder (45%)</strong> | <strong style="color:var(--throughput);">vllm-worker (30%)</strong> | <strong style="color:var(--kv-gold);">Elastic Shared Buffer (25%)</strong></span>
         </div>
         <div class="bm-pool-progress">
           <div class="bm-pool-seg-responder" style="width:45%;" title="vllm-responder 4.41 GB"></div>
-          <div class="bm-pool-seg-agents" style="width:30%;" title="vllm-agents 2.94 GB"></div>
+          <div class="bm-pool-seg-worker" style="width:30%;" title="vllm-worker 2.94 GB"></div>
           <div class="bm-pool-seg-buffer" style="width:25%;" title="Dynamic Free Buffer 2.45 GB"></div>
         </div>
       </div>
@@ -345,7 +374,7 @@
       <div class="bm-chart-card">
         <div class="bm-chart-head">
           <h4>🔥 Prefix Caching Gain (Uncached vs kvcached)</h4>
-          <span style="font-size:11px;color:var(--muted);">short_chat vs shared_prefix_agents</span>
+          <span style="font-size:11px;color:var(--muted);">short_chat vs shared_prefix_tasks</span>
         </div>
         <div class="bm-chart-canvas-wrap">
           <canvas id="chartPrefixGain"></canvas>
@@ -384,8 +413,10 @@
 
       <div class="bm-scenario-selector">
         <button class="bm-sc-btn active" id="btn-sc-short_chat" onclick="selectBenchmarkScenario('short_chat')">💬 short_chat (100 reqs, c=10)</button>
-        <button class="bm-sc-btn" id="btn-sc-shared_prefix_agents" onclick="selectBenchmarkScenario('shared_prefix_agents')">⚡ shared_prefix_agents (100 reqs, c=10)</button>
+        <button class="bm-sc-btn" id="btn-sc-shared_prefix_tasks" onclick="selectBenchmarkScenario('shared_prefix_tasks')">⚡ shared_prefix_tasks (100 reqs, c=10)</button>
         <button class="bm-sc-btn" id="btn-sc-heterogeneous_pipeline" onclick="selectBenchmarkScenario('heterogeneous_pipeline')">🔀 heterogeneous_pipeline (60 reqs, c=12)</button>
+        <button class="bm-sc-btn" id="btn-sc-dynamic_lora_churn" onclick="selectBenchmarkScenario('dynamic_lora_churn')">🔄 dynamic_lora_churn (80 reqs, c=16)</button>
+        <button class="bm-sc-btn" id="btn-sc-cascading_compound_workflow" onclick="selectBenchmarkScenario('cascading_compound_workflow')">🤖 cascading_compound_workflow (48 reqs, c=8)</button>
         <button class="bm-sc-btn" id="btn-sc-long_rag" onclick="selectBenchmarkScenario('long_rag')">📚 long_rag (50 reqs, c=5)</button>
         <button class="bm-sc-btn" id="btn-sc-overload" onclick="selectBenchmarkScenario('overload')">🔥 overload (1000 reqs, c=100)</button>
       </div>
@@ -418,9 +449,9 @@
      ========================================================================= -->
 <section id="pipeline">
   <div class="c">
-    <div class="ey">Section 2 — The Micro-Agent Pipeline</div>
-    <h2>Memory State at Each Agent Step</h2>
-    <p class="lead">Your <code>agent-worker</code> runs <strong>Triage → Redact → Respond</strong> sequentially. Switch tabs to see how memory behaves at each step.</p>
+    <div class="ey">Section 2 — The Multi-Step Pipeline</div>
+    <h2>Memory State at Each Workflow Step</h2>
+    <p class="lead">Your <code>pipeline-worker</code> runs <strong>Classification → Extraction → Synthesis</strong> sequentially. Switch tabs to see how memory behaves at each step.</p>
     <div class="card rv">
       <div class="tb">
         <button class="tbt active" id="tbb" onclick="switchTab('b')">❌ Without kvcached (Hard Partitioned)</button>
@@ -428,143 +459,85 @@
       </div>
       <div id="tab-b" class="tp active">
         <div class="pf">
-          <div class="ps pt"><div class="nu">1</div><h4>Triage</h4><p>→ <strong>vllm-agents</strong> + <em>reasoning-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">Capped at static limit<br/><small>Responder VRAM is 100% IDLE</small></div></div>
+          <div class="ps pt"><div class="nu">1</div><h4>Classification</h4><p>→ <strong>vllm-worker</strong> + <em>reasoning-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">Capped at static limit<br/><small>Synthesiser VRAM is 100% IDLE</small></div></div>
           <div class="pa">→</div>
-          <div class="ps prx"><div class="nu">2</div><h4>Redact</h4><p>→ <strong>vllm-agents</strong> + <em>reflection-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">2 LoRAs share tight slice<br/><small>⚠️ OOM & 429 rejection risk</small></div></div>
+          <div class="ps prx"><div class="nu">2</div><h4>Extraction</h4><p>→ <strong>vllm-worker</strong> + <em>reflection-lora</em></p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">2 LoRAs share tight slice<br/><small>⚠️ OOM & 429 rejection risk</small></div></div>
           <div class="pa">→</div>
-          <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> for synthesis</p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">Static ceiling reached<br/><small>Agents VRAM is now 100% IDLE</small></div></div>
+          <div class="ps pp"><div class="nu">3</div><h4>Synthesis</h4><p>→ <strong>vllm-responder</strong> for synthesis</p><div class="mt" style="background:rgba(248,113,113,.12);color:var(--danger);">Static ceiling reached<br/><small>Worker VRAM is now 100% IDLE</small></div></div>
         </div>
         <div class="cal cdx" style="margin-top:20px;"><div class="ic">🚨</div><div><strong>Why your AdmissionService fires early:</strong> vLLM returns 429 when its static block pool exhausts — not when the GPU runs out of compute. Your Gateway semaphore escalates this into client-facing HTTP 503s.</div></div>
       </div>
       <div id="tab-a" class="tp">
         <div class="pf">
-          <div class="ps pt"><div class="nu">1</div><h4>Triage</h4><p>→ <strong>vllm-agents</strong> + <em>reasoning-lora</em></p><div class="mt">Borrows up to 90% of shared pool<br/><small>Pages unmapped on completion</small></div></div>
+          <div class="ps pt"><div class="nu">1</div><h4>Classification</h4><p>→ <strong>vllm-worker</strong> + <em>reasoning-lora</em></p><div class="mt">Borrows up to 90% of shared pool<br/><small>Pages unmapped on completion</small></div></div>
           <div class="pa">→</div>
-          <div class="ps prx"><div class="nu">2</div><h4>Redact</h4><p>→ <strong>vllm-agents</strong> + <em>reflection-lora</em></p><div class="mt">Both LoRAs burst dynamically<br/><small>✅ Zero block fragmentation</small></div></div>
+          <div class="ps prx"><div class="nu">2</div><h4>Extraction</h4><p>→ <strong>vllm-worker</strong> + <em>reflection-lora</em></p><div class="mt">Both LoRAs burst dynamically<br/><small>✅ Zero block fragmentation</small></div></div>
           <div class="pa">→</div>
-          <div class="ps pp"><div class="nu">3</div><h4>Respond</h4><p>→ <strong>vllm-responder</strong> claims freed pool</p><div class="mt">Expands to large context synthesis<br/><small>High token concurrency</small></div></div>
+          <div class="ps pp"><div class="nu">3</div><h4>Synthesis</h4><p>→ <strong>vllm-responder</strong> claims freed pool</p><div class="mt">Expands to large context synthesis<br/><small>High token concurrency</small></div></div>
         </div>
-        <div class="cal csx" style="margin-top:20px;"><div class="ic">🎯</div><div><strong>Result:</strong> AdmissionService only sheds load when actual physical GPU compute saturates. You can safely increase <code>GLOBAL_AGENT_CONCURRENCY</code> by 2x–3x.</div></div>
+        <div class="cal csx" style="margin-top:20px;"><div class="ic">🎯</div><div><strong>Result:</strong> AdmissionService only sheds load when actual physical GPU compute saturates. You can safely increase <code>GLOBAL_WORKER_CONCURRENCY</code> by 2x–3x.</div></div>
       </div>
     </div>
 
-    <!-- Agent Mission Dossier: What Do These Names Mean? -->
+    <!-- kvcached Deep Dive -->
     <div style="margin-top:48px;" class="rv">
-      <div class="ey">Agent Deep Dive</div>
-      <h3 style="font-size:22px;font-weight:800;margin-bottom:10px;color:#fff;">What Do "Triage", "Redact", and "Respond" Actually Mean?</h3>
+      <div class="ey">kvcached Deep Dive</div>
+      <h3 style="font-size:22px;font-weight:800;margin-bottom:10px;color:#fff;">How KV Cache & Memory Sharing Work</h3>
       <p style="color:var(--muted);font-size:14px;max-width:760px;line-height:1.7;margin-bottom:24px;">
-        In our production architecture, instead of running one giant, slow, expensive model for everything, we decompose workflows into three specialized micro-agents. Here is what each agent does, why it is named that way, and how it executes:
+        To understand why <code>kvcached</code> is necessary, we must look at how LLMs manage memory during autoregressive generation, and why standard pre-allocation creates severe bottlenecks.
       </p>
 
-      <div class="agent-dossier-grid">
-        <!-- Agent 1: Triage -->
-        <div class="agent-card ac-triage">
-          <div class="agent-card-header">
-            <div class="agent-title-group">
-              <h3>🏷️ Agent 1: Triage</h3>
-              <span class="agent-role-badge">Intent &amp; Routing Sentry</span>
-            </div>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--throughput);font-weight:700;">Step 1</span>
-          </div>
-
-          <div class="agent-def-box">
-            <strong>What does "Triage" mean?</strong> Borrowed from emergency medicine, <em>triage</em> is the rapid evaluation of incoming cases to determine urgency, category, and routing path before expending valuable specialist resources.
-          </div>
-
-          <div class="agent-tech-pill">
-            <span>Runtime Engine</span>
-            <span class="tech-tag">vllm-agents + reasoning-lora</span>
-          </div>
-
-          <div class="agent-io-preview">
-            <div class="agent-io-step">
-              <span class="agent-io-label">Incoming User Prompt:</span>
-              <div class="agent-io-content">"Production postgres database on port 5432 is rejecting pool connections with error 1045! Fix it now!"</div>
-            </div>
-            <div class="agent-io-step">
-              <span class="agent-io-label">Triage Agent Output (JSON in &lt;20ms):</span>
-              <div class="agent-io-content">{"category": "database_incident", "urgency": "critical", "tools_needed": ["db_logs", "connection_pool"], "route": "sysadmin"}</div>
+      <div class="worker-dossier-grid">
+        <!-- Card 1 -->
+        <div class="worker-card ac-triage">
+          <div class="worker-card-header">
+            <div class="worker-title-group">
+              <h3>🧠 1. What is the KV Cache?</h3>
+              <span class="worker-role-badge">The Autoregressive Bottleneck</span>
             </div>
           </div>
-
+          <div class="worker-def-box">
+            <strong>The Context Memory:</strong> During text generation, LLMs output one token at a time. To avoid recalculating the attention scores for all previous tokens on every step, inference engines store the intermediate Key (K) and Value (V) tensors in VRAM. This is the <em>KV Cache</em>.
+          </div>
           <ul class="agent-perks-list">
-            <li><strong>Sub-second TTFT:</strong> Runs on a lightweight 0.5B base model yielding ~180 tokens/sec.</li>
-            <li><strong>Zero FLOP Waste:</strong> Avoids burning 14B+ model compute just to parse user intent.</li>
-            <li><strong>Memory Profile:</strong> Requires only ~0.5 GB VRAM; releases KV memory immediately.</li>
+            <li><strong>Grows Linearly:</strong> Memory = $	ext{Layers} 	imes 2 	imes D_{	ext{model}} 	imes 	ext{Tokens} 	imes 	ext{Precision}$.</li>
+            <li><strong>Massive Footprint:</strong> A 100k context prompt can consume gigabytes of VRAM for a single request.</li>
+            <li><strong>Unpredictable:</strong> Engine cannot know final output length in advance.</li>
           </ul>
         </div>
 
-        <!-- Agent 2: Redact -->
-        <div class="agent-card ac-redact">
-          <div class="agent-card-header">
-            <div class="agent-title-group">
-              <h3>🛡️ Agent 2: Redact</h3>
-              <span class="agent-role-badge">Privacy &amp; PII Sanitizer</span>
-            </div>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--warn);font-weight:700;">Step 2</span>
-          </div>
-
-          <div class="agent-def-box">
-            <strong>What does "Redact" mean?</strong> To <em>redact</em> means to censor, obscure, or strip confidential or sensitive information (PII, credentials, API keys) from text before it is permanently stored, logged, or shared.
-          </div>
-
-          <div class="agent-tech-pill">
-            <span>Runtime Engine</span>
-            <span class="tech-tag">vllm-agents + reflection-lora</span>
-          </div>
-
-          <div class="agent-io-preview">
-            <div class="agent-io-step">
-              <span class="agent-io-label">Raw Prompt (With Secrets):</span>
-              <div class="agent-io-content">"Verify user alex@fintech.io with SSN 012-34-5678 and token sk-live_9481ad829fba"</div>
-            </div>
-            <div class="agent-io-step">
-              <span class="agent-io-label">Redacted Output (Safe for Downstream):</span>
-              <div class="agent-io-content">"Verify user <mark class="sanitized">[REDACTED_EMAIL]</mark> with SSN <mark class="sanitized">[REDACTED_SSN]</mark> and token <mark class="sanitized">[REDACTED_SECRET]</mark>"</div>
+        <!-- Card 2 -->
+        <div class="worker-card ac-redact">
+          <div class="worker-card-header">
+            <div class="worker-title-group">
+              <h3>🧊 2. The Static Allocation Trap</h3>
+              <span class="worker-role-badge">Wasted Resources</span>
             </div>
           </div>
-
+          <div class="worker-def-box">
+            <strong>Standard vLLM/TRT-LLM:</strong> To manage the unpredictable KV Cache growth, standard engines pre-allocate a huge chunk of VRAM at boot (e.g., 90% of GPU) as a static block pool. 
+          </div>
           <ul class="agent-perks-list">
-            <li><strong>Compliance First:</strong> Enforces GDPR, HIPAA, and SOC2 confidentiality automatically.</li>
-            <li><strong>Zero Leaks:</strong> Sanitized tokens prevent accidental leakage into prompt-cache tables or cloud telemetry.</li>
-            <li><strong>Multi-LoRA Agility:</strong> Hot-swaps on the same <code>vllm-agents</code> container without rebooting or loading a new base model.</li>
+            <li><strong>Stranded Memory:</strong> If Engine A has a traffic spike and Engine B is idle, Engine A will still OOM or reject requests (429) because it cannot borrow Engine B's pre-allocated memory.</li>
+            <li><strong>Fragmentation:</strong> Without paging, memory fragments quickly, leading to wasted space between contiguous blocks.</li>
           </ul>
         </div>
 
-        <!-- Agent 3: Respond -->
-        <div class="agent-card ac-respond">
-          <div class="agent-card-header">
-            <div class="agent-title-group">
-              <h3>✍️ Agent 3: Respond</h3>
-              <span class="agent-role-badge">Deep Synthesis &amp; Reasoning</span>
-            </div>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--precision);font-weight:700;">Step 3</span>
-          </div>
-
-          <div class="agent-def-box">
-            <strong>What does "Respond" mean?</strong> The primary synthesis engine that generates the final, authoritative, high-precision answer, code solution, or explanation for the end user.
-          </div>
-
-          <div class="agent-tech-pill">
-            <span>Runtime Engine</span>
-            <span class="tech-tag">vllm-responder (High-Precision Base)</span>
-          </div>
-
-          <div class="agent-io-preview">
-            <div class="agent-io-step">
-              <span class="agent-io-label">Ingested Context:</span>
-              <div class="agent-io-content">Sanitized prompt + Triage metadata (critical) + Diagnostic outputs</div>
-            </div>
-            <div class="agent-io-step">
-              <span class="agent-io-label">Synthesized Output (High Context):</span>
-              <div class="agent-io-content">Root Cause: Max connection threshold reached in pg_hba.conf. Executed pool eviction script &amp; increased max_connections to 200.</div>
+        <!-- Card 3 -->
+        <div class="worker-card ac-respond">
+          <div class="worker-card-header">
+            <div class="worker-title-group">
+              <h3>⚡ 3. Demand Paged IPC (kvcached)</h3>
+              <span class="worker-role-badge">The Elastic Solution</span>
             </div>
           </div>
-
+          <div class="worker-def-box">
+            <strong>Dynamic Pooling:</strong> <code>kvcached</code> creates a global physical page pool using the CUDA Virtual Memory Management (VMM) API. It shares memory handles with containers over a Unix Domain Socket (IPC).
+          </div>
           <ul class="agent-perks-list">
-            <li><strong>Deep CoT Reasoning:</strong> Uses unquantized or high-precision weights for rich textual quality.</li>
-            <li><strong>Large Context Windows:</strong> Expands up to 8k–32k tokens when working with large logs.</li>
-            <li><strong>Dynamic Pool Borrowing:</strong> Absorbs the physical VRAM pages released by Triage and Redact to avoid 429/504 errors.</li>
+            <li><strong>Sub-millisecond Mapping:</strong> Engines map and unmap physical pages into their virtual address space in < 0.05ms.</li>
+            <li><strong>Elastic Borrowing:</strong> Any engine can burst and consume up to 100% of the shared pool, returning pages instantly when done.</li>
+            <li><strong>Zero Copy:</strong> Data never moves between containers; they simply share pointers to the same physical GPU memory.</li>
           </ul>
         </div>
       </div>
@@ -618,11 +591,11 @@
       <div class="fact-card">
         <span class="fc-badge" style="background:rgba(245,158,11,.15);color:var(--kv-gold);">Fact #4 · Hardware Math</span>
         <h4>The Mathematical Formula for Memory Savings</h4>
-        <p>In a standard dual-engine setup, the stranded memory ratio $S$ is defined by the duty-cycle divergence between micro-agents:</p>
+        <p>In a standard dual-engine setup, the stranded memory ratio $S$ is defined by the duty-cycle divergence between pipeline stages:</p>
         <p style="font-family:var(--font-mono);font-size:12px;background:rgba(0,0,0,.3);padding:8px;border-radius:6px;margin:8px 0;">
-          Stranded_VRAM = VRAM_Total × (util_responder × idle_responder + util_agents × idle_agents)
+          Stranded_VRAM = VRAM_Total × (util_responder × idle_responder + util_workers × idle_workers)
         </p>
-        <p>Because agents execute asynchronously (Triage then Redact then Respond), one engine is idle 60%–75% of the time, resulting in 4–8 GB of stranded hardware capacity on a single card.</p>
+        <p>Because pipeline stages execute asynchronously (Classification then Extraction then Synthesis), one engine is idle 60%–75% of the time, resulting in 4–8 GB of stranded hardware capacity on a single card.</p>
       </div>
     </div>
   </div>
@@ -651,7 +624,7 @@
         <div>
           <div class="rc-icon">📑</div>
           <h4>2. Cross-Engine Prefix Cache Sharing</h4>
-          <p>In multi-agent pipelines, system prompts and schema definitions often overlap between Triage, Redact, and Respond. Persisting KV prefix blocks across engines allows 100% cache hits on prompt tokens.</p>
+          <p>In multi-step pipelines, system prompts and schema definitions often overlap between Classification, Extraction, and Synthesis. Persisting KV prefix blocks across engines allows 100% cache hits on prompt tokens.</p>
         </div>
         <div class="rc-tag">Token Savings · 40-70% TTFT Drop</div>
       </div>

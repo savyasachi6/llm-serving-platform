@@ -81,6 +81,7 @@ kubectl get pods -n llm-serving
 | **Configuration** | [Configuration Guide](docs/configuration.md) | Full environment variable matrix, secrets, and model swapping. |
 | **Tuning & Sizing** | [Inference & Hardware Sizing Guide](docs/inference/tuning_guide.md) | VRAM budgeting, quantization, prefix caching, and multi-GPU/CPU setups. |
 | **Security & Secrets** | [Security Threat Model](docs/security/threat_model.md) | Strict tenant cache isolation, log redaction, and prompt injection defense. |
+| **Advanced Benchmarks** | [Advanced Benchmarks & Metrics Guide](docs/benchmarks/advanced_metrics_and_scenarios_guide.md) | TTFT/TPOT/ITL jitter, dynamic LoRA churn, compound AI DAG, and cost efficiency. |
 
 ## 🧭 Choose Your Path
 - **I want to run the project locally**: Start with the [Docker Guide](docs/docker-guide.md).
