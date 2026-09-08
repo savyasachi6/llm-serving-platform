@@ -277,7 +277,6 @@ async def run_scenario(scenario_path: str, output_path: str = None):
 
     models_summary = []
     for m_key, item in models_breakdown.items():
-        dur_s = sorted(item["durations"])
         tt_s = sorted(item["ttfts"])
         tp_s = sorted(item["tpots"])
         m_p50_ttft = percentile(tt_s, 50) * 1000.0
@@ -453,7 +452,7 @@ async def run_scenario(scenario_path: str, output_path: str = None):
         existing_data = []
         if os.path.exists(output_path):
             try:
-                with open(output_path, "r", encoding="utf-8") as out_f:
+                with open(output_path, encoding="utf-8") as out_f:
                     existing_data = json.load(out_f)
                 if not isinstance(existing_data, list):
                     existing_data = [existing_data]
