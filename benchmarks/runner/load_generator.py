@@ -90,7 +90,11 @@ async def run_scenario(scenario_path: str, output_path: str = None):
 
                     # Time To First Token (TTFT in seconds)
                     # For cached prefixes, prefill time is negligible (~5-10% of total)
-                    is_cached = "shared_prefix" in scenario_name or "cache" in scenario_name or "compound" in scenario_name
+                    is_cached = (
+                        "shared_prefix" in scenario_name
+                        or "cache" in scenario_name
+                        or "compound" in scenario_name
+                    )
                     ttft_s = duration * 0.08 if is_cached else min(duration * 0.40, 0.85)
 
                     # Gateway Queue Wait Time (ms)
@@ -99,7 +103,9 @@ async def run_scenario(scenario_path: str, output_path: str = None):
                         queue_wait_ms = float(header_queue)
                     else:
                         # Synthetic queuing model: when concurrency exceeds engine capacity (8)
-                        queue_wait_ms = max(0.0, (concurrency - 8) * 1.85) if concurrency > 8 else 0.45
+                        queue_wait_ms = (
+                            max(0.0, (concurrency - 8) * 1.85) if concurrency > 8 else 0.45
+                        )
 
                     # Inter-Token Latency (ITL) Mean & Jitter (ms)
                     itl_mean_ms = tpot_ms
@@ -221,7 +227,11 @@ async def run_scenario(scenario_path: str, output_path: str = None):
         else (
             81.2
             if "compound" in scenario_name
-            else (75.0 if "heterogeneous" in scenario_name else (68.4 if "churn" in scenario_name else 0.0))
+            else (
+                75.0
+                if "heterogeneous" in scenario_name
+                else (68.4 if "churn" in scenario_name else 0.0)
+            )
         )
     )
     cached_tokens_count = int(total_prompt_tokens * (cache_hit_rate / 100.0))
@@ -237,9 +247,13 @@ async def run_scenario(scenario_path: str, output_path: str = None):
     cloud_api_cost_usd = (total_prompt_tokens * 0.15 + total_completion_tokens * 0.60) / 1_000_000.0
     # Our self-hosted serving cost: ~$0.021 per 1M blended tokens on local/cloud GPU instance
     platform_cost_usd = (total_tokens * 0.021) / 1_000_000.0
-    cost_per_1k_reqs_usd = (platform_cost_usd / max(1, len(successes))) * 1000.0 if successes else 0.0
+    cost_per_1k_reqs_usd = (
+        (platform_cost_usd / max(1, len(successes))) * 1000.0 if successes else 0.0
+    )
     cost_savings_pct = (
-        round(((cloud_api_cost_usd - platform_cost_usd) / max(0.00001, cloud_api_cost_usd)) * 100.0, 1)
+        round(
+            ((cloud_api_cost_usd - platform_cost_usd) / max(0.00001, cloud_api_cost_usd)) * 100.0, 1
+        )
         if cloud_api_cost_usd > 0
         else 0.0
     )
@@ -247,7 +261,9 @@ async def run_scenario(scenario_path: str, output_path: str = None):
 
     # SLO Attainment (TTFT <= 350ms and TPOT <= 25ms)
     slo_met_count = sum(
-        1 for r in successes if (r.get("ttft_s", 0.0) * 1000.0 <= 350.0 and r.get("tpot_ms", 0.0) <= 25.0)
+        1
+        for r in successes
+        if (r.get("ttft_s", 0.0) * 1000.0 <= 350.0 and r.get("tpot_ms", 0.0) <= 25.0)
     )
     slo_attainment_pct = round((slo_met_count / max(1, len(successes))) * 100.0, 1)
 
@@ -283,19 +299,21 @@ async def run_scenario(scenario_path: str, output_path: str = None):
         m_p95_ttft = percentile(tt_s, 95) * 1000.0
         m_p50_tpot = percentile(tp_s, 50)
         m_decode_tps = item["completion_tokens"] / total_time if total_time > 0 else 0
-        models_summary.append({
-            "engine": item["engine"],
-            "model": item["model"],
-            "lora": item["lora"],
-            "requests": item["count"],
-            "traffic_share_pct": round(item["count"] / max(1, len(successes)) * 100, 1),
-            "p50_ttft_ms": round(m_p50_ttft, 1),
-            "p95_ttft_ms": round(m_p95_ttft, 1),
-            "p50_tpot_ms_per_tok": round(m_p50_tpot, 1),
-            "decode_tps": round(m_decode_tps, 1),
-            "prompt_tokens": item["prompt_tokens"],
-            "completion_tokens": item["completion_tokens"],
-        })
+        models_summary.append(
+            {
+                "engine": item["engine"],
+                "model": item["model"],
+                "lora": item["lora"],
+                "requests": item["count"],
+                "traffic_share_pct": round(item["count"] / max(1, len(successes)) * 100, 1),
+                "p50_ttft_ms": round(m_p50_ttft, 1),
+                "p95_ttft_ms": round(m_p95_ttft, 1),
+                "p50_tpot_ms_per_tok": round(m_p50_tpot, 1),
+                "decode_tps": round(m_decode_tps, 1),
+                "prompt_tokens": item["prompt_tokens"],
+                "completion_tokens": item["completion_tokens"],
+            }
+        )
 
     sep = "=" * 76
     print(sep)
@@ -303,7 +321,7 @@ async def run_scenario(scenario_path: str, output_path: str = None):
     print(f"  Workload Type      : {workload_type}")
     print(f"  Requests / Conc    : {num_requests} requests (concurrency={concurrency})")
     print(
-        f"  Success / Failed   : {len(successes)} / {len(failures)} ({len(successes)/num_requests*100:.1f}%)"
+        f"  Success / Failed   : {len(successes)} / {len(failures)} ({len(successes) / num_requests * 100:.1f}%)"
     )
     print(f"  Request Throughput : {rps:.2f} req/s")
     print(f"  Token Throughput   : {decode_tps:.1f} decode tok/s | {total_tps:.1f} total tok/s")
@@ -313,11 +331,9 @@ async def run_scenario(scenario_path: str, output_path: str = None):
     print(
         f"  Request Latency    : p50={p50:.3f}s  p95={p95:.3f}s  p99={p99:.3f}s  avg={avg_latency:.3f}s"
     )
+    print(f"  Prefill Latency    : p50={p50_ttft * 1000:.1f}ms  p95={p95_ttft * 1000:.1f}ms (TTFT)")
     print(
-        f"  Prefill Latency    : p50={p50_ttft*1000:.1f}ms  p95={p95_ttft*1000:.1f}ms (TTFT)"
-    )
-    print(
-        f"  Decode Latency     : p50={p50_tpot:.1f}ms/tok  p95={p95_tpot:.1f}ms/tok (TPOT, ~{1000/max(1, p50_tpot):.0f} tok/s/stream)"
+        f"  Decode Latency     : p50={p50_tpot:.1f}ms/tok  p95={p95_tpot:.1f}ms/tok (TPOT, ~{1000 / max(1, p50_tpot):.0f} tok/s/stream)"
     )
     print(
         f"  Queue & ITL Jitter : Queue Wait p50={p50_queue:.2f}ms p95={p95_queue:.2f}ms | ITL Jitter={p50_jitter:.2f}ms"
@@ -340,7 +356,9 @@ async def run_scenario(scenario_path: str, output_path: str = None):
     # Print Multi-Model Breakdown Table if multi-model scenario
     if len(models_summary) > 1:
         print("\n  --- MULTI-MODEL SERVING BREAKDOWN ---")
-        print(f"  {'Engine':<16} {'Model':<24} {'LoRA':<18} {'Reqs (%)':<10} {'TTFT p50':<10} {'TPOT p50'}")
+        print(
+            f"  {'Engine':<16} {'Model':<24} {'LoRA':<18} {'Reqs (%)':<10} {'TTFT p50':<10} {'TPOT p50'}"
+        )
         print("  " + "-" * 72)
         for ms in models_summary:
             print(
@@ -398,8 +416,12 @@ async def run_scenario(scenario_path: str, output_path: str = None):
         },
         "cost_and_energy": {
             "platform_cost_per_1k_requests_usd": round(cost_per_1k_reqs_usd, 4),
-            "platform_cost_per_1m_tokens_usd": round((platform_cost_usd / max(1, total_tokens)) * 1_000_000, 3),
-            "cloud_api_baseline_per_1m_tokens_usd": round((cloud_api_cost_usd / max(1, total_tokens)) * 1_000_000, 3),
+            "platform_cost_per_1m_tokens_usd": round(
+                (platform_cost_usd / max(1, total_tokens)) * 1_000_000, 3
+            ),
+            "cloud_api_baseline_per_1m_tokens_usd": round(
+                (cloud_api_cost_usd / max(1, total_tokens)) * 1_000_000, 3
+            ),
             "cost_savings_pct": cost_savings_pct,
             "prefill_energy_savings_pct": prefill_energy_savings_pct,
         },
@@ -475,5 +497,3 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     asyncio.run(run_scenario(args.scenario, output_path=args.output))
-
-

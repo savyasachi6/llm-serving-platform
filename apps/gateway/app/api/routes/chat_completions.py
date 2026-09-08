@@ -56,4 +56,3 @@ async def chat_completions(
         admission.release()
         duration = time.time() - start_time
         logger.info("request_completed", duration_seconds=duration)
-
