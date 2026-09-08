@@ -1,0 +1,142 @@
+Using CPython 3.14.4 interpreter at: /usr/bin/python3
+Removed virtual environment at: .venv
+Creating virtual environment at: .venv
+Installed 28 packages in 16.47s
+============================================================================
+  Benchmark Scenario : cascading_compound_agent
+  Workload Type      : cascading_compound_agent
+  Requests / Conc    : 48 requests (concurrency=8)
+  Success / Failed   : 36 / 12 (75.0%)
+  Request Throughput : 4.39 req/s
+  Token Throughput   : 131.1 decode tok/s | 394.4 total tok/s
+  Total Tokens       : 2880 prompt + 1434 completion = 4314 tokens
+  Request Latency    : p50=1.337s  p95=4.339s  p99=4.414s  avg=1.943s
+  Prefill Latency    : p50=107.0ms  p95=347.1ms (TTFT)
+  Decode Latency     : p50=45.2ms/tok  p95=166.6ms/tok (TPOT, ~22 tok/s/stream)
+  Queue & ITL Jitter : Queue Wait p50=0.45ms p95=0.45ms | ITL Jitter=3.61ms
+  kvcached Dynamic   : 9.8 GB Shared VRAM Pool (7.5 MB Active KV | 0% OOM Preemptions)
+  Prefix Cache Reuse : 81.2% hit rate (2338 prompt tokens saved from prefill | 66.6% energy saved)
+  Multi-LoRA Status  : 2 Active Adapters (reasoning-lora, reflection-lora) | Cache Hit Rate: 79.2% | Swap p95: 24.5ms
+  Cost & SLO Metrics : Platform Cost: $0.0025/1k reqs ($0.021/1M tok, 93.0% vs Cloud APIs) | SLO Attainment: 30.6%
+
+  --- MULTI-MODEL SERVING BREAKDOWN ---
+  Engine           Model                    LoRA               Reqs (%)   TTFT p50   TPOT p50
+  ------------------------------------------------------------------------
+  vllm-agents      reasoning-lora           reasoning-lora     12 (33.3%)   151.6ms    75.8ms
+  vllm-agents      reflection-lora          reflection-lora    12 (33.3%)   169.3ms    70.5ms
+  vllm-responder   Qwen/Qwen2.5-1.5B-Inst   none               12 (33.3%)   99.5ms    17.8ms
+  [FAIL] status=502  err=HTTP 502
+  [FAIL] status=502  err=HTTP 502
+  [FAIL] status=502  err=HTTP 502
+============================================================================
+============================================================================
+  Benchmark Scenario : dynamic_lora_churn
+  Workload Type      : dynamic_lora_churn
+  Requests / Conc    : 80 requests (concurrency=16)
+  Success / Failed   : 32 / 48 (40.0%)
+  Request Throughput : 14.02 req/s
+  Token Throughput   : 143.7 decode tok/s | 480.1 total tok/s
+  Total Tokens       : 1920 prompt + 820 completion = 2740 tokens
+  Request Latency    : p50=1.559s  p95=2.346s  p99=2.471s  avg=1.603s
+  Prefill Latency    : p50=623.5ms  p95=850.0ms (TTFT)
+  Decode Latency     : p50=61.7ms/tok  p95=126.9ms/tok (TPOT, ~16 tok/s/stream)
+  Queue & ITL Jitter : Queue Wait p50=14.80ms p95=14.80ms | ITL Jitter=13.58ms
+  kvcached Dynamic   : 9.8 GB Shared VRAM Pool (10.7 MB Active KV | 0% OOM Preemptions)
+  Prefix Cache Reuse : 68.4% hit rate (1313 prompt tokens saved from prefill | 56.1% energy saved)
+  Multi-LoRA Status  : 2 Active Adapters (reasoning-lora, reflection-lora) | Cache Hit Rate: 50.0% | Swap p95: 24.5ms
+  Cost & SLO Metrics : Platform Cost: $0.0018/1k reqs ($0.021/1M tok, 92.6% vs Cloud APIs) | SLO Attainment: 0.0%
+
+  --- MULTI-MODEL SERVING BREAKDOWN ---
+  Engine           Model                    LoRA               Reqs (%)   TTFT p50   TPOT p50
+  ------------------------------------------------------------------------
+  vllm-agents      reasoning-lora           reasoning-lora     16 (50.0%)   674.4ms    61.9ms
+  vllm-agents      reflection-lora          reflection-lora    16 (50.0%)   613.0ms    61.2ms
+  [FAIL] status=502  err=HTTP 502
+  [FAIL] status=502  err=HTTP 502
+  [FAIL] status=502  err=HTTP 502
+============================================================================
+============================================================================
+  Benchmark Scenario : heterogeneous_pipeline
+  Workload Type      : heterogeneous_pipeline
+  Requests / Conc    : 60 requests (concurrency=12)
+  Success / Failed   : 60 / 0 (100.0%)
+  Request Throughput : 9.64 req/s
+  Token Throughput   : 304.9 decode tok/s | 857.6 total tok/s
+  Total Tokens       : 3440 prompt + 1898 completion = 5338 tokens
+  Request Latency    : p50=1.172s  p95=1.831s  p99=1.994s  avg=1.111s
+  Prefill Latency    : p50=468.9ms  p95=732.6ms (TTFT)
+  Decode Latency     : p50=51.9ms/tok  p95=181.8ms/tok (TPOT, ~19 tok/s/stream)
+  Queue & ITL Jitter : Queue Wait p50=7.40ms p95=7.40ms | ITL Jitter=11.42ms
+  kvcached Dynamic   : 9.8 GB Shared VRAM Pool (8.3 MB Active KV | 0% OOM Preemptions)
+  Prefix Cache Reuse : 75.0% hit rate (2580 prompt tokens saved from prefill | 61.5% energy saved)
+  Multi-LoRA Status  : 2 Active Adapters (reasoning-lora, reflection-lora) | Cache Hit Rate: 80.0% | Swap p95: 24.5ms
+  Cost & SLO Metrics : Platform Cost: $0.0019/1k reqs ($0.021/1M tok, 93.2% vs Cloud APIs) | SLO Attainment: 0.0%
+
+  --- MULTI-MODEL SERVING BREAKDOWN ---
+  Engine           Model                    LoRA               Reqs (%)   TTFT p50   TPOT p50
+  ------------------------------------------------------------------------
+  vllm-agents      reasoning-lora           reasoning-lora     20 (33.3%)   218.5ms    73.8ms
+  vllm-agents      reflection-lora          reflection-lora    20 (33.3%)   525.4ms    52.5ms
+  vllm-responder   Qwen/Qwen2.5-1.5B-Inst   none               20 (33.3%)   451.1ms    18.8ms
+============================================================================
+============================================================================
+  Benchmark Scenario : long_rag
+  Workload Type      : reasoning
+  Requests / Conc    : 50 requests (concurrency=5)
+  Success / Failed   : 50 / 0 (100.0%)
+  Request Throughput : 3.73 req/s
+  Token Throughput   : 240.6 decode tok/s | 419.7 total tok/s
+  Total Tokens       : 2400 prompt + 3223 completion = 5623 tokens
+  Request Latency    : p50=1.531s  p95=1.985s  p99=2.042s  avg=1.225s
+  Prefill Latency    : p50=612.4ms  p95=794.1ms (TTFT)
+  Decode Latency     : p50=19.4ms/tok  p95=44.2ms/tok (TPOT, ~52 tok/s/stream)
+  Queue & ITL Jitter : Queue Wait p50=0.45ms p95=0.45ms | ITL Jitter=1.55ms
+  kvcached Dynamic   : 9.8 GB Shared VRAM Pool (8.8 MB Active KV | 0% OOM Preemptions)
+  Cost & SLO Metrics : Platform Cost: $0.0024/1k reqs ($0.021/1M tok, 94.9% vs Cloud APIs) | SLO Attainment: 26.0%
+============================================================================
+============================================================================
+  Benchmark Scenario : overload
+  Workload Type      : chat
+  Requests / Conc    : 1000 requests (concurrency=100)
+  Success / Failed   : 1000 / 0 (100.0%)
+  Request Throughput : 21.07 req/s
+  Token Throughput   : 509.8 decode tok/s | 1310.2 total tok/s
+  Total Tokens       : 38000 prompt + 24199 completion = 62199 tokens
+  Request Latency    : p50=4.152s  p95=6.234s  p99=6.620s  avg=4.262s
+  Prefill Latency    : p50=850.0ms  p95=850.0ms (TTFT)
+  Decode Latency     : p50=344.5ms/tok  p95=550.7ms/tok (TPOT, ~3 tok/s/stream)
+  Queue & ITL Jitter : Queue Wait p50=170.20ms p95=170.20ms | ITL Jitter=75.78ms
+  kvcached Dynamic   : 9.8 GB Shared VRAM Pool (48.6 MB Active KV | 0% OOM Preemptions)
+  Cost & SLO Metrics : Platform Cost: $0.0013/1k reqs ($0.021/1M tok, 93.5% vs Cloud APIs) | SLO Attainment: 0.0%
+============================================================================
+============================================================================
+  Benchmark Scenario : shared_prefix_agents
+  Workload Type      : chat
+  Requests / Conc    : 100 requests (concurrency=10)
+  Success / Failed   : 100 / 0 (100.0%)
+  Request Throughput : 15.62 req/s
+  Token Throughput   : 92.6 decode tok/s | 732.8 total tok/s
+  Total Tokens       : 4100 prompt + 593 completion = 4693 tokens
+  Request Latency    : p50=0.572s  p95=1.034s  p99=1.666s  avg=0.594s
+  Prefill Latency    : p50=45.8ms  p95=82.7ms (TTFT)
+  Decode Latency     : p50=108.2ms/tok  p95=226.9ms/tok (TPOT, ~9 tok/s/stream)
+  Queue & ITL Jitter : Queue Wait p50=3.70ms p95=3.70ms | ITL Jitter=23.81ms
+  kvcached Dynamic   : 9.8 GB Shared VRAM Pool (3.7 MB Active KV | 0% OOM Preemptions)
+  Prefix Cache Reuse : 87.5% hit rate (3587 prompt tokens saved from prefill | 71.8% energy saved)
+  Cost & SLO Metrics : Platform Cost: $0.0010/1k reqs ($0.021/1M tok, 89.8% vs Cloud APIs) | SLO Attainment: 0.0%
+============================================================================
+============================================================================
+  Benchmark Scenario : short_chat
+  Workload Type      : chat
+  Requests / Conc    : 100 requests (concurrency=10)
+  Success / Failed   : 100 / 0 (100.0%)
+  Request Throughput : 11.29 req/s
+  Token Throughput   : 287.1 decode tok/s | 716.2 total tok/s
+  Total Tokens       : 3800 prompt + 2543 completion = 6343 tokens
+  Request Latency    : p50=0.645s  p95=1.960s  p99=2.145s  avg=0.807s
+  Prefill Latency    : p50=258.0ms  p95=784.1ms (TTFT)
+  Decode Latency     : p50=35.1ms/tok  p95=66.7ms/tok (TPOT, ~29 tok/s/stream)
+  Queue & ITL Jitter : Queue Wait p50=3.70ms p95=3.70ms | ITL Jitter=7.71ms
+  kvcached Dynamic   : 9.8 GB Shared VRAM Pool (5.0 MB Active KV | 0% OOM Preemptions)
+  Cost & SLO Metrics : Platform Cost: $0.0013/1k reqs ($0.021/1M tok, 93.6% vs Cloud APIs) | SLO Attainment: 0.0%
+============================================================================

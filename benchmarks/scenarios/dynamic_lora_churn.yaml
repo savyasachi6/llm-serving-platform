@@ -1,0 +1,46 @@
+name: "dynamic_lora_churn"
+description: "High-cardinality multi-LoRA switching benchmark testing adapter cache hit/miss overhead, dynamic weight swap latency, and VRAM stability"
+concurrency: 16
+requests: 80
+workload_type: "dynamic_lora_churn"
+payloads:
+  - workload_type: "triage"
+    model: "reasoning-lora"
+    messages:
+      - role: "system"
+        content: "You are a triage classifier specialist. Determine severity level (P0/P1/P2) and affected service domain."
+      - role: "user"
+        content: "API gateway returned 502 Bad Gateway for all auth requests in us-east-1."
+    max_tokens: 30
+  - workload_type: "redactor"
+    model: "reflection-lora"
+    messages:
+      - role: "system"
+        content: "You are a privacy redaction specialist. Extract and mask all sensitive identifiers, tokens, and PII."
+      - role: "user"
+        content: "User Alice Smith (alice@corp.internal, API key: sk-live-94921f00b2) encountered billing issue."
+    max_tokens: 35
+  - workload_type: "code_specialist"
+    model: "code-assistant-lora"
+    messages:
+      - role: "system"
+        content: "You are an optimized code generation and debugging specialist."
+      - role: "user"
+        content: "Write a high-performance Python function to compute moving exponential moving average with numpy."
+    max_tokens: 45
+  - workload_type: "math_reasoner"
+    model: "math-reasoning-lora"
+    messages:
+      - role: "system"
+        content: "You are a step-by-step mathematical reasoning assistant."
+      - role: "user"
+        content: "A cluster of 8 GPUs runs at 85% utilization. If batch size doubles and throughput increases by 1.6x, what is the new compute density?"
+    max_tokens: 50
+  - workload_type: "summarizer"
+    model: "summary-lora"
+    messages:
+      - role: "system"
+        content: "You are a concise enterprise summarization agent."
+      - role: "user"
+        content: "Summarize the Q3 inference cluster metrics: 14.2M tokens generated, 99.4% SLA adherence, 42% cost reduction via kvcached pooling."
+    max_tokens: 40

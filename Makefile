@@ -43,4 +43,14 @@ build-k8s:
 	docker build -t playground:v1.1 apps/playground
 
 download-loras:
-	python scripts/download_real_loras.py
+	python scripts/lora/download_loras.py
+
+generate-loras:
+	python scripts/lora/generate_adapters.py
+
+demo-pipeline:
+	python scripts/demo/test_micro_agents.py
+
+visualize-kvcached:
+	python scripts/kvcached_visualizer/serve.py --serve
+

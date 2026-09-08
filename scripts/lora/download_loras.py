@@ -1,6 +1,11 @@
-"""Download real fine-tuned LoRA adapter checkpoints from Hugging Face Hub."""
+"""Download real fine-tuned LoRA adapter checkpoints from Hugging Face Hub.
+
+Fetches pre-trained adapter weights into the local lora_adapters/ directory for
+Multi-LoRA dynamic hot-swapping in vLLM.
+"""
 
 import os
+import pathlib
 import urllib.request
 
 
@@ -13,7 +18,7 @@ def download_file(url: str, dest_path: str):
     )
     with urllib.request.urlopen(req) as response, open(dest_path, "wb") as out_file:
         out_file.write(response.read())
-    print(f"[OK] Downloaded {file_name} ({os.path.getsize(dest_path)} bytes)")
+    print(f"[OK] Downloaded {file_name} ({os.path.getsize(dest_path):,} bytes)")
 
 
 def download_hf_lora(repo_id: str, local_dir: str):
@@ -26,20 +31,21 @@ def download_hf_lora(repo_id: str, local_dir: str):
 
 
 def main():
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    adapters_dir = os.path.join(root_dir, "lora_adapters")
+    root_dir = pathlib.Path(__file__).resolve().parents[2]
+    adapters_dir = root_dir / "lora_adapters"
 
     # 1. Real fine-tuned reasoning LoRA
     print("\n--- Downloading Real Fine-Tuned Reasoning LoRA ---")
     download_hf_lora(
         "wuyanzu4692/task-13-Qwen-Qwen2.5-0.5B-Instruct",
-        os.path.join(adapters_dir, "reasoning-lora"),
+        str(adapters_dir / "reasoning-lora"),
     )
 
     # 2. Real fine-tuned reflection / bias LoRA
     print("\n--- Downloading Real Fine-Tuned Reflection LoRA ---")
     download_hf_lora(
-        "Hebisuke/Qwen2.5-0.5B-Instruct_bias2_0.5B", os.path.join(adapters_dir, "reflection-lora")
+        "Hebisuke/Qwen2.5-0.5B-Instruct_bias2_0.5B",
+        str(adapters_dir / "reflection-lora"),
     )
 
     print("\n[SUCCESS] Both genuine fine-tuned LoRA adapters downloaded from Hugging Face Hub!")

@@ -10,7 +10,8 @@
 #   - Redact Agent requests model="reflection-lora" for PII redaction
 #
 # Memory Strategy:
-#   Under GPU time-slicing, uses --gpu-memory-utilization 0.22 (~2.7GB VRAM).
+#   Using kvcached for dynamic memory pooling. The virtual ceiling is set to 0.90,
+#   but physical memory is allocated elastically via the /tmp/kvcached-ipc socket.
 # ==============================================================================
 
 apiVersion: apps/v1
@@ -38,15 +39,15 @@ spec:
     spec:
       containers:
         - name: vllm-agents
-          image: vllm/vllm-openai:latest
+          image: ghcr.io/ovg-project/kvcached-vllm:v0.24.0
           imagePullPolicy: IfNotPresent
           command:
             - vllm
             - serve
             - Qwen/Qwen2.5-0.5B-Instruct
-            # 0.22 restricts physical VRAM usage (~2.7GB on 12GB GPU) for Qwen 0.5B + LoRAs
+            # Virtual VRAM ceiling: kvcached manages physical allocation dynamically
             - --gpu-memory-utilization
-            - "0.22"
+            - "0.90"
             - --max-model-len
             - "1024"
             - --enforce-eager
@@ -63,6 +64,13 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
+            # Route KV cache requests dynamically through the IPC socket to kvcached:
+            - name: ENABLE_KVCACHED
+              value: "true"
+            - name: KVCACHED_AUTOPATCH
+              value: "1"
+            - name: KVCACHED_IPC_PATH
+              value: "/tmp/kvcached-ipc/kvcached.sock"
             - name: VLLM_WSL2_ENABLE_PIN_MEMORY
               value: "1"
             - name: HUGGING_FACE_HUB_TOKEN
@@ -78,6 +86,15 @@ spec:
             limits:
               cpu: "4000m"
               memory: "8Gi"
+          volumeMounts:
+            # Mount the shared IPC socket directory from the kvcached daemonset
+            - name: kvcached-ipc
+              mountPath: /tmp/kvcached-ipc
+      volumes:
+        - name: kvcached-ipc
+          hostPath:
+            path: /tmp/kvcached-ipc
+            type: DirectoryOrCreate
 ---
 # ==============================================================================
 # vLLM Agents Internal Service
