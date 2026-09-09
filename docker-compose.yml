@@ -35,7 +35,7 @@ services:
     build:
       context: .
       dockerfile: apps/gateway/Dockerfile
-    image: gateway:latest
+    image: gateway:v1.2
     container_name: llm-gateway-root
     restart: unless-stopped
     ports:
@@ -45,18 +45,21 @@ services:
     environment:
       - GATEWAY_PORT=8000
       - REDIS_URL=redis://redis:6379/0
-      - USE_MOCK=False
+      - USE_MOCK=${USE_MOCK:-True}
       # Internal DNS names automatically resolved by Docker's embedded DNS:
       - VLLM_RESPONDER_BASE_URL=http://vllm-responder:8080/v1
       - VLLM_AGENTS_BASE_URL=http://vllm-agents:8080/v1
       - VLLM_BASE_URL=http://vllm-responder:8080/v1
+      - OLLAMA_BASE_URL=http://ollama:11434
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')\" || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     depends_on:
       redis:
         condition: service_healthy
-      vllm-responder:
-        condition: service_started
-      vllm-agents:
-        condition: service_started
     networks:
       - llm-network
 
@@ -65,7 +68,7 @@ services:
     build:
       context: .
       dockerfile: apps/agent-worker/Dockerfile
-    image: agent-worker:latest
+    image: agent-worker:v1.2
     container_name: llm-agent-worker-root
     restart: unless-stopped
     ports:
@@ -76,46 +79,45 @@ services:
       - GATEWAY_URL=http://gateway:8000
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - gateway
-      - redis
+      gateway:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - llm-network
+
+  # Playground: Interactive React/TypeScript frontend UI.
+  playground:
+    build:
+      context: apps/playground
+      dockerfile: Dockerfile
+    image: playground:v1.1
+    container_name: llm-playground-root
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8001
+    depends_on:
+      - agent-worker
+    networks:
+      - llm-network
+
+  # Ollama: Local inference fallback for CPU or single GPU environments.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: llm-ollama-root
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
     networks:
       - llm-network
 
   # ----------------------------------------------------------------------------
   # Dynamic VRAM Management (kvcached)
   # ----------------------------------------------------------------------------
-
-  # kvcached VRAM Manager Daemon:
-  # Creates a shared pool of physical VRAM pages across engines. Instead of each vLLM
-  # engine statically locking its entire KV cache allocation at boot (which crashes with OOMs
-  # on memory-constrained GPUs (e.g., 8 GB to 16 GB VRAM workstations or cloud instances),
-  # kvcached dynamically allocates memory pages over an IPC Unix domain socket and immediately
-  # reclaims them when generation ends.
-  kvcached:
-    image: ghcr.io/ovg-project/kvcached:latest
-    container_name: llm-kvcached-root
-    runtime: nvidia
-    restart: unless-stopped
-    volumes:
-      # IPC socket volume shared across kvcached daemon and all vLLM engines
-      - /tmp/kvcached-ipc:/tmp/kvcached-ipc
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "test", "-S", "/tmp/kvcached-ipc/kvcached.sock"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    networks:
-      - llm-network
 
   # ----------------------------------------------------------------------------
   # Inference Engines (vLLM Dual-Engine Stack)
@@ -124,8 +126,9 @@ services:
   # vllm-responder:
   # Dedicated high-accuracy inference engine for reasoning and final response synthesis.
   # Serves Qwen2.5-1.5B-Instruct without LoRAs.
+  # Note: kvcached is built directly into ghcr.io/ovg-project/kvcached-vllm:latest.
   vllm-responder:
-    image: ghcr.io/ovg-project/kvcached-vllm:v0.24.0 # Patched kvcached vLLM image
+    image: ghcr.io/ovg-project/kvcached-vllm:latest # Patched kvcached vLLM image
     container_name: llm-vllm-responder-root
     restart: unless-stopped
     command:
@@ -153,16 +156,11 @@ services:
       # CUDA pinned memory without special flags. Enabling this prevents CUDA allocator
       # runtime errors when running on Windows WSL2.
       - VLLM_WSL2_ENABLE_PIN_MEMORY=1
-      # Configure dynamic memory paging through kvcached IPC:
+      # Configure dynamic memory paging through kvcached:
       - ENABLE_KVCACHED=true
       - KVCACHED_AUTOPATCH=1
-      - KVCACHED_IPC_PATH=/tmp/kvcached-ipc/kvcached.sock
     volumes:
-      # Shared socket directory mounted from the host / kvcached container
-      - /tmp/kvcached-ipc:/tmp/kvcached-ipc
-    depends_on:
-      kvcached:
-        condition: service_healthy
+      - vllm_cache:/root/.cache/huggingface
     deploy:
       resources:
         reservations:
@@ -170,6 +168,8 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    profiles:
+      - gpu
     networks:
       - llm-network
 
@@ -178,7 +178,7 @@ services:
   # Dynamically hot-swaps between reasoning-lora (intent classification) and
   # reflection-lora (PII removal) on demand.
   vllm-agents:
-    image: ghcr.io/ovg-project/kvcached-vllm:v0.24.0 # Patched kvcached vLLM image
+    image: ghcr.io/ovg-project/kvcached-vllm:latest # Patched kvcached vLLM image
     container_name: llm-vllm-agents-root
     restart: unless-stopped
     command:
@@ -213,12 +213,8 @@ services:
       # Route KV cache requests dynamically through kvcached:
       - ENABLE_KVCACHED=true
       - KVCACHED_AUTOPATCH=1
-      - KVCACHED_IPC_PATH=/tmp/kvcached-ipc/kvcached.sock
     volumes:
-      - /tmp/kvcached-ipc:/tmp/kvcached-ipc
-    depends_on:
-      kvcached:
-        condition: service_healthy
+      - vllm_cache:/root/.cache/huggingface
     deploy:
       resources:
         reservations:
@@ -226,6 +222,8 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    profiles:
+      - gpu
     networks:
       - llm-network
 
@@ -250,10 +248,15 @@ services:
       - llm-network
 
 # ------------------------------------------------------------------------------
-# Network Isolation
+# Network Isolation & Volumes
 # ------------------------------------------------------------------------------
 networks:
   # Internal bridge network connecting the Qwen serving stack
   llm-network:
     name: llm_serving_root_network
     driver: bridge
+
+volumes:
+  ollama_data:
+  vllm_cache:
+
