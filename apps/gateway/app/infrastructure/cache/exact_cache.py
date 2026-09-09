@@ -9,9 +9,17 @@ from contracts.openai_models import ChatCompletionRequest, ChatCompletionRespons
 class CachePolicy:
     @staticmethod
     def is_cacheable(request: ChatCompletionRequest) -> bool:
-        # Banned from cache: High temp, semantic caching for sensitive workloads (we only do exact here)
+        """
+        Determine if the request is cacheable.
+
+        Rule 4 (Semantic Response Caching):
+        Semantic caching is strictly DISABLED by default in our architecture to protect against
+        cross-tenant data leakage and side-effecting agent hallucinations. We ONLY use an
+        exact-match caching policy for the Gateway. Banned from cache entirely: High temp,
+        personalized user data, financial/legal queries, etc.
+        """
         # We always cache exact unless explicitly asked not to via a custom flag.
-        # But we must ensure tenant_scope is present.
+        # But we must ensure tenant_scope is present to enforce strict isolation.
         if not request.tenant_scope:
             return False
         return True

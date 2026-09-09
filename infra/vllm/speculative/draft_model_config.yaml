@@ -14,5 +14,8 @@ num_speculative_tokens: 5
 # This doesn't require a second model loaded into VRAM, saving memory.
 ngram_prompt_lookup_max: 4
 
-# NOTE: Speculative decoding is disabled by default in our baseline model profiles
-# to conserve VRAM on memory-constrained GPUs (e.g. 8GB - 16GB budgets).
+# Rule 6 (Speculative Decoding):
+# NOTE: Speculative decoding is strictly DISABLED by default in our baseline model profiles.
+# It must not be enabled without prior interface design, feature flagging, and empirical profiling.
+# Fabricating unauthorized or unvetted draft-model artifacts (e.g. Medusa/EAGLE) without 
+# measuring exact task compatibility is strictly forbidden.

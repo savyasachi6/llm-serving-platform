@@ -72,6 +72,7 @@ kubectl get pods -n llm-serving
 | Topic | Link | Description |
 |---|---|---|
 | **Architecture** | [Architecture Overview](docs/architecture/overview.md) | High-level system design, request flow, and control plane. |
+| **Cost-Saving Techniques** | [Cost-Saving Techniques](docs/cost_saving_techniques) | KV-cache memory, request concurrency, prefix caching, semantic response caching, quantization, and speculative decoding. |
 | **Multi-LoRA Serving** | [Multi-LoRA & Heterogeneous Serving](docs/architecture/multi_lora_and_heterogeneous_serving_explained.md) | Dynamic adapter hot-swapping and CUDA kernel internals. |
 | **Frontend Playground** | [Playground UI Guide](docs/architecture/frontend_playground_and_kubernetes_guide.md) | Real-time React dashboard for customer support ticket assembly line. |
 | **Local Setup & Docker** | [Docker Guide](docs/docker-guide.md) | Multi-stage builds, port mappings, named volumes, and bridge networks. |
